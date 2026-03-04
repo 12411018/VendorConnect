@@ -45,6 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ChoiceChip(
                   label: const Text("Wholesaler"),
                   selected: role == "wholesaler",
+                  selectedColor: const Color(0xFF6366F1),
                   onSelected: (value) {
                     setState(() {
                       role = "wholesaler";
@@ -57,6 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ChoiceChip(
                   label: const Text("Retailer"),
                   selected: role == "retailer",
+                  selectedColor: const Color(0xFF6366F1),
                   onSelected: (value) {
                     setState(() {
                       role = "retailer";
