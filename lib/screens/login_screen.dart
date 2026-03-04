@@ -1,0 +1,132 @@
+import 'package:flutter/material.dart';
+import 'wholesaler_dashboard.dart';
+import 'retailer_dashboard.dart';
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+
+  String role = "wholesaler";
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+
+      appBar: AppBar(
+        title: const Text("VendorConnect Login"),
+      ),
+
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+
+            const Text(
+              "Select Role",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+
+                ChoiceChip(
+                  label: const Text("Wholesaler"),
+                  selected: role == "wholesaler",
+                  onSelected: (value) {
+                    setState(() {
+                      role = "wholesaler";
+                    });
+                  },
+                ),
+
+                const SizedBox(width: 20),
+
+                ChoiceChip(
+                  label: const Text("Retailer"),
+                  selected: role == "retailer",
+                  onSelected: (value) {
+                    setState(() {
+                      role = "retailer";
+                    });
+                  },
+                ),
+
+              ],
+            ),
+
+            const SizedBox(height: 40),
+
+            TextField(
+              decoration: InputDecoration(
+                labelText: "Email",
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            TextField(
+              obscureText: true,
+              decoration: InputDecoration(
+                labelText: "Password",
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 30),
+
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 50),
+              ),
+
+              onPressed: () {
+
+                if(role == "wholesaler"){
+
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const WholesalerDashboard(),
+                    ),
+                  );
+
+                } else {
+
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const RetailerDashboard(),
+                    ),
+                  );
+
+                }
+
+              },
+
+              child: const Text("Login"),
+            )
+
+          ],
+        ),
+      ),
+    );
+  }
+}
