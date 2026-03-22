@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 class DashboardCard extends StatelessWidget {
-
   final String title;
   final String value;
   final IconData icon;
@@ -17,27 +16,39 @@ class DashboardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final theme = Theme.of(context);
 
-      padding: const EdgeInsets.all(16),
+    return Container(
+      constraints: const BoxConstraints(minHeight: 108),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
 
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(15),
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF374151)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
 
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
 
         children: [
-
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               Text(
                 title,
-                style: const TextStyle(color: Colors.grey),
+                style: const TextStyle(
+                  color: Color(0xFF9CA3AF),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
 
               const SizedBox(height: 8),
@@ -45,16 +56,22 @@ class DashboardCard extends StatelessWidget {
               Text(
                 value,
                 style: const TextStyle(
-                  fontSize: 20,
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
+                  color: Color(0xFFF9FAFB),
                 ),
               ),
-
             ],
           ),
 
-          Icon(icon, size: 40, color: color),
-
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, size: 30, color: color),
+          ),
         ],
       ),
     );
