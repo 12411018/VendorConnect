@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:vendorlink/screens/auth/login_screen.dart';
+import 'package:vendorlink/screens/wholesaler/products/products_page.dart';
+import 'package:vendorlink/services/auth_service.dart';
 
-import '../../services/auth_service.dart';
-import '../login_screen.dart';
 import 'deliveries_page.dart';
 import 'orders_page.dart';
 import 'overview_page.dart';
-import 'products_page.dart';
 import 'wholesaler_profile_page.dart';
 
 class WholesalerHome extends StatefulWidget {

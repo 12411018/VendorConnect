@@ -2,8 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import '../services/auth_service.dart';
+import 'package:vendorlink/services/auth_service.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -62,6 +61,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
     });
   }
 
+  bool _isRateLimitMessage(String message) {
+    final text = message.toLowerCase();
+    return text.contains('rate limit') ||
+        text.contains('too many requests') ||
+        text.contains('over_email_send_rate_limit');
+  }
+
+  int _retrySecondsFromMessage(String message) {
+    final match = RegExp(
+      r'(\d+)\s*seconds?',
+      caseSensitive: false,
+    ).firstMatch(message);
+    if (match == null) {
+      return 60;
+    }
+
+    return int.tryParse(match.group(1) ?? '') ?? 60;
+  }
+
   Future<void> _onCreateAccount() async {
     if (_retryAfterSeconds > 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -100,9 +118,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       );
       Navigator.pop(context);
     } on AuthException catch (error) {
-      final message = error.message.toLowerCase();
-      if (message.contains('after 60') || message.contains('60 seconds')) {
-        _startRetryCooldown(60);
+      if (_isRateLimitMessage(error.message)) {
+        _startRetryCooldown(_retrySecondsFromMessage(error.message));
       }
 
       if (!mounted) {

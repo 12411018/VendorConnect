@@ -19,6 +19,13 @@ class ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final normalizedImageUrl = imageUrl.trim();
+    final parsedUri = Uri.tryParse(normalizedImageUrl);
+    final hasValidImageUrl =
+        normalizedImageUrl.isNotEmpty &&
+        parsedUri != null &&
+        parsedUri.hasScheme &&
+        parsedUri.host.isNotEmpty;
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -33,20 +40,29 @@ class ProductCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 child: SizedBox(
                   width: double.infinity,
-                  child: Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: const Color(0xFF374151),
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.image_not_supported,
-                          color: Colors.white70,
+                  child: hasValidImageUrl
+                      ? Image.network(
+                          normalizedImageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: const Color(0xFF374151),
+                              alignment: Alignment.center,
+                              child: const Icon(
+                                Icons.image_not_supported,
+                                color: Colors.white70,
+                              ),
+                            );
+                          },
+                        )
+                      : Container(
+                          color: const Color(0xFF374151),
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.image_not_supported,
+                            color: Colors.white70,
+                          ),
                         ),
-                      );
-                    },
-                  ),
                 ),
               ),
             ),

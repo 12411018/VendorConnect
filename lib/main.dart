@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import 'services/auth_service.dart';
-import 'screens/login_screen.dart';
-import 'screens/retailer_dashboard.dart';
-import 'screens/wholesaler/wholesaler_home.dart';
+import 'package:vendorlink/screens/auth/login_screen.dart';
+import 'package:vendorlink/screens/retailer/retailer_dashboard.dart';
+import 'package:vendorlink/screens/wholesaler/wholesaler_home.dart';
+import 'package:vendorlink/services/auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -98,13 +97,26 @@ class VendorLinkApp extends StatelessWidget {
   }
 }
 
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  late final Future<String?> _initialRoleFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _initialRoleFuture = _resolveInitialRole();
+  }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<String?>(
-      future: _resolveInitialRole(),
+      future: _initialRoleFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Scaffold(

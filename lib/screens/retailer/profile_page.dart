@@ -17,7 +17,7 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Profile")),
+      appBar: AppBar(title: const Text('Profile')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -45,7 +45,7 @@ class ProfilePage extends StatelessWidget {
                   Icons.email_outlined,
                   color: Color(0xFF93C5FD),
                 ),
-                title: const Text("Email"),
+                title: const Text('Email'),
                 subtitle: Text(email),
               ),
             ),
@@ -55,7 +55,7 @@ class ProfilePage extends StatelessWidget {
                   Icons.badge_outlined,
                   color: Color(0xFF93C5FD),
                 ),
-                title: const Text("Role"),
+                title: const Text('Role'),
                 subtitle: Text(role),
               ),
             ),
@@ -65,15 +65,15 @@ class ProfilePage extends StatelessWidget {
                   Icons.location_on_outlined,
                   color: Color(0xFF93C5FD),
                 ),
-                title: Text("Location"),
-                subtitle: Text("Pune, Maharashtra"),
+                title: Text('Location'),
+                subtitle: Text('Pune, Maharashtra'),
               ),
             ),
             Card(
               child: const ListTile(
                 leading: Icon(Icons.phone_outlined, color: Color(0xFF93C5FD)),
-                title: Text("Phone"),
-                subtitle: Text("+91 98765 43210"),
+                title: Text('Phone'),
+                subtitle: Text('+91 98765 43210'),
               ),
             ),
             const SizedBox(height: 24),
@@ -81,7 +81,7 @@ class ProfilePage extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.edit),
-                label: const Text("Edit Profile"),
+                label: const Text('Edit Profile'),
                 onPressed: () {},
               ),
             ),
