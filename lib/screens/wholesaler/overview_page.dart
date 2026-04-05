@@ -13,178 +13,433 @@ class OverviewPage extends StatefulWidget {
 class _OverviewPageState extends State<OverviewPage> {
   final AuthService _authService = AuthService();
 
-  int _toQuantity(dynamic value) {
-    if (value is int) {
-      return value;
+  double _toAmount(dynamic value) {
+    if (value is num) {
+      return value.toDouble();
     }
-    if (value is double) {
-      return value.toInt();
-    }
-    return int.tryParse((value ?? '').toString()) ?? 0;
+    return double.tryParse((value ?? '').toString()) ?? 0;
   }
 
-  int _stockQty(Map<String, dynamic> item) {
-    return _toQuantity(item['stock_qty'] ?? item['quantity']);
+  String _formatMoney(double value) {
+    return 'Rs ${value.toStringAsFixed(2)}';
   }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _authService.watchCurrentUserProducts(),
-      builder: (context, snapshot) {
-        final products = snapshot.data ?? const [];
-        final totalProducts = products.length;
-        final totalQuantity = products.fold<int>(
-          0,
-          (sum, item) => sum + _stockQty(item),
-        );
-        final lowStockCount = products
-            .where((item) => _stockQty(item) <= 5)
-            .length;
-        final topProduct = products.isEmpty
-            ? 'No products yet'
-            : (products.reduce(
-                        (a, b) => _stockQty(a) >= _stockQty(b) ? a : b,
-                      )['name']
-                      as String? ??
-                  'Unnamed');
+    return StreamBuilder<Map<String, dynamic>?>(
+      stream: _authService.watchCurrentUserProfile(),
+      builder: (context, profileSnapshot) {
+        return StreamBuilder<List<Map<String, dynamic>>>(
+          stream: _authService.watchWholesalerOrders(),
+          builder: (context, ordersSnapshot) {
+            final profile = profileSnapshot.data ?? const <String, dynamic>{};
+            final orders =
+                ordersSnapshot.data ?? const <Map<String, dynamic>>[];
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.wifi_tethering,
-                        color: Theme.of(context).colorScheme.secondary,
+            final walletBalance = _toAmount(profile['wallet_balance']);
+            final totalOrders = orders.length;
+            final totalRevenue = orders.fold<double>(
+              0,
+              (sum, order) =>
+                  sum +
+                  _toAmount(order['total_amount'] ?? order['total_price']),
+            );
+            final deliveredRevenue = orders
+                .where(
+                  (order) =>
+                      (order['status'] ?? '').toString().toLowerCase() ==
+                      'delivered',
+                )
+                .fold<double>(
+                  0,
+                  (sum, order) =>
+                      sum +
+                      _toAmount(order['total_amount'] ?? order['total_price']),
+                );
+            final displayedWalletBalance = walletBalance > 0
+                ? walletBalance
+                : deliveredRevenue;
+            final processingOrders = orders
+                .where(
+                  (order) =>
+                      (order['status'] ?? '').toString().toLowerCase() ==
+                      'processing',
+                )
+                .length;
+            final deliveredOrders = orders
+                .where(
+                  (order) =>
+                      (order['status'] ?? '').toString().toLowerCase() ==
+                      'delivered',
+                )
+                .length;
+            final recentOrders = orders.take(5).toList(growable: false);
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF0F172A), Color(0xFF1D4ED8)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      const SizedBox(width: 10),
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.14),
+                          blurRadius: 22,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.14),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Icon(
+                                Icons.trending_up_rounded,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Sales Dashboard',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    'Track wallet, revenue and order activity in one place',
+                                    style: TextStyle(
+                                      color: Color(0xFFD1D5DB),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _BalanceCard(
+                                title: 'Wallet balance',
+                                value: _formatMoney(displayedWalletBalance),
+                                icon: Icons.account_balance_wallet_outlined,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _BalanceCard(
+                                title: 'Revenue',
+                                value: _formatMoney(totalRevenue),
+                                icon: Icons.payments_outlined,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
                       Expanded(
-                        child: Text(
-                          snapshot.connectionState == ConnectionState.waiting
-                              ? 'Syncing realtime product data...'
-                              : 'Realtime sync active for your product workspace',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        child: DashboardCard(
+                          title: 'Total Orders',
+                          value: '$totalOrders',
+                          icon: Icons.receipt_long,
+                          color: Colors.indigo,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DashboardCard(
+                          title: 'Processing Orders',
+                          value: '$processingOrders',
+                          icon: Icons.local_shipping_outlined,
+                          color: Colors.orange,
                         ),
                       ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  DashboardCard(
+                    title: 'Delivered Orders',
+                    value: '$deliveredOrders',
+                    icon: Icons.check_circle_outline,
+                    color: Colors.green,
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Recent Order History',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 12),
+                  if (ordersSnapshot.connectionState == ConnectionState.waiting)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (recentOrders.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFF334155)),
+                      ),
+                      child: const Text(
+                        'No orders yet. New payments and order history will appear here.',
+                        style: TextStyle(color: Color(0xFFCBD5E1)),
+                      ),
+                    )
+                  else
+                    ...recentOrders.map(
+                      (order) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _OrderHistoryTile(order: order),
+                      ),
+                    ),
+                ],
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Overview',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1F2937),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFF374151)),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _BalanceCard extends StatelessWidget {
+  const _BalanceCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+  });
+
+  final String title;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: Colors.white),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Color(0xFFD1D5DB),
+                    fontSize: 12,
+                  ),
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OrderHistoryTile extends StatelessWidget {
+  const _OrderHistoryTile({required this.order});
+
+  final Map<String, dynamic> order;
+
+  String _toMoney(dynamic value) {
+    if (value is num) {
+      return 'Rs ${value.toDouble().toStringAsFixed(2)}';
+    }
+    final parsed = double.tryParse((value ?? '').toString()) ?? 0;
+    return 'Rs ${parsed.toStringAsFixed(2)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final orderNumber = (order['order_number'] ?? order['id'] ?? '-')
+        .toString();
+    final status = (order['status'] ?? 'pending').toString();
+    final shippingName = (order['shipping_name'] ?? 'Retailer').toString();
+    final amount = _toMoney(order['total_amount'] ?? order['total_price']);
+    final createdAt = (order['created_at'] ?? '').toString();
+
+    final statusColor = switch (status.toLowerCase()) {
+      'accepted' => const Color(0xFF16A34A),
+      'rejected' => const Color(0xFFDC2626),
+      'processing' => const Color(0xFF2563EB),
+      _ => const Color(0xFFF59E0B),
+    };
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111827),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF334155)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    DashboardCard(
-                      title: 'Total Products',
-                      value: '$totalProducts',
-                      icon: Icons.inventory_2,
-                      color: Colors.indigo,
+                    Text(
+                      'Order #$orderNumber',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFFF8FAFC),
+                      ),
                     ),
-                    const SizedBox(height: 14),
-                    DashboardCard(
-                      title: 'Total Quantity',
-                      value: '$totalQuantity units',
-                      icon: Icons.numbers,
-                      color: Colors.green,
-                    ),
-                    const SizedBox(height: 14),
-                    DashboardCard(
-                      title: 'Top Stock Product',
-                      value: topProduct,
-                      icon: Icons.star,
-                      color: Colors.orange,
+                    const SizedBox(height: 4),
+                    Text(
+                      shippingName,
+                      style: const TextStyle(color: Color(0xFFCBD5E1)),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
               Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1F2937),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFF374151)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Low Stock',
-                                style: TextStyle(color: Color(0xFF9CA3AF)),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                '$lowStockCount Items',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Latest Product',
-                                style: TextStyle(color: Color(0xFF9CA3AF)),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                totalProducts == 0
-                                    ? 'No products'
-                                    : (products.first['name'] as String? ??
-                                          'Unnamed'),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  status.toUpperCase(),
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
           ),
-        );
-      },
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _InfoBlock(label: 'Revenue', value: amount),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _InfoBlock(
+                  label: 'Created',
+                  value: createdAt.isEmpty ? 'Just now' : createdAt,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoBlock extends StatelessWidget {
+  const _InfoBlock({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF334155)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFFF8FAFC),
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

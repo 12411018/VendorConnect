@@ -13,8 +13,6 @@ class RetailerProductsHeader extends StatelessWidget {
     required this.onSearchChanged,
     required this.onCategoryChanged,
     required this.onTypeChanged,
-    this.onActionPressed,
-    this.actionLabel,
   });
 
   final String summaryText;
@@ -27,23 +25,69 @@ class RetailerProductsHeader extends StatelessWidget {
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<String> onCategoryChanged;
   final ValueChanged<String> onTypeChanged;
-  final VoidCallback? onActionPressed;
-  final String? actionLabel;
 
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0B1325), Color(0xFF172554)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFF1E3A8A)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$productCount products live in marketplace',
+                style: const TextStyle(
+                  color: Color(0xFFBFDBFE),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                summaryText,
+                style: const TextStyle(fontSize: 13, color: Color(0xFFCBD5E1)),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
         TextField(
           controller: searchController,
           onChanged: onSearchChanged,
           decoration: InputDecoration(
-            hintText: 'Search by product name or SKU',
-            prefixIcon: const Icon(Icons.search),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            hintText: 'Search by product name, category, or type',
+            prefixIcon: const Icon(Icons.search_rounded),
+            filled: true,
+            fillColor: const Color(0xFF0F172A),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFF1E293B)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFF1E293B)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(
+                color: Color(0xFF3B82F6),
+                width: 1.2,
+              ),
+            ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Row(
           children: [
             Expanded(
@@ -63,23 +107,6 @@ class RetailerProductsHeader extends StatelessWidget {
                 onChanged: onTypeChanged,
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                summaryText,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
-              ),
-            ),
-            if (onActionPressed != null)
-              IconButton.filledTonal(
-                onPressed: onActionPressed,
-                icon: const Icon(Icons.refresh),
-                tooltip: actionLabel ?? 'Action',
-              ),
           ],
         ),
       ],

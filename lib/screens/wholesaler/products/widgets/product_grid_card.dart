@@ -6,10 +6,12 @@ class ProductGridCard extends StatelessWidget {
   const ProductGridCard({
     super.key,
     required this.item,
+    required this.onTap,
     required this.onManagePressed,
   });
 
   final ProductUiModel item;
+  final VoidCallback onTap;
   final VoidCallback onManagePressed;
 
   @override
@@ -17,136 +19,202 @@ class ProductGridCard extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final stockQty = int.tryParse(item.quantity) ?? 0;
     final isOutOfStock = stockQty <= 0;
+    final gallery = item.galleryImages;
 
     return Opacity(
       opacity: isOutOfStock ? 0.45 : 1,
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              height: 178,
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF0F172A), Color(0xFF111827)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: item.imageUrl.trim().isEmpty
-                          ? Container(
-                              color: const Color(0xFF374151),
-                              alignment: Alignment.center,
-                              child: const Icon(
-                                Icons.image_not_supported,
-                                color: Colors.white70,
-                              ),
-                            )
-                          : Image.network(
-                              item.imageUrl,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => Container(
-                                color: const Color(0xFF374151),
-                                alignment: Alignment.center,
-                                child: const Icon(
-                                  Icons.image_not_supported,
-                                  color: Colors.white70,
-                                ),
-                              ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Card(
+            clipBehavior: Clip.antiAlias,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 178,
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF0F172A), Color(0xFF111827)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: gallery.isEmpty
+                              ? Container(
+                                  color: const Color(0xFF374151),
+                                  alignment: Alignment.center,
+                                  child: const Icon(
+                                    Icons.image_not_supported,
+                                    color: Colors.white70,
+                                  ),
+                                )
+                              : _CardCarousel(imageUrls: gallery),
+                        ),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xCC111827),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: const Color(0xFF374151)),
+                          ),
+                          child: Text(
+                            isOutOfStock ? 'Sold out' : 'Qty: ${item.quantity}',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFFD1D5DB),
                             ),
-                    ),
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xCC111827),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: const Color(0xFF374151)),
-                      ),
-                      child: Text(
-                        isOutOfStock ? 'Sold out' : 'Qty: ${item.quantity}',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFFD1D5DB),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFFF9FAFB),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF9CA3AF),
-                        fontSize: 12,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      'Price: ${item.price}  |  SKU: ${item.sku}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFFD1D5DB),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    SizedBox(
-                      height: 34,
-                      width: double.infinity,
-                      child: FilledButton.tonalIcon(
-                        onPressed: onManagePressed,
-                        icon: const Icon(Icons.more_horiz, size: 16),
-                        label: const Text('Manage'),
-                        style: FilledButton.styleFrom(
-                          foregroundColor: colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
-              ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFF9FAFB),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          item.description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF9CA3AF),
+                            fontSize: 12,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          'Price: ${item.price}  |  ${item.ratingAverage.toStringAsFixed(1)} star (${item.ratingCount})',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFFD1D5DB),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        SizedBox(
+                          height: 34,
+                          width: double.infinity,
+                          child: FilledButton.tonalIcon(
+                            onPressed: onManagePressed,
+                            icon: const Icon(Icons.more_horiz, size: 16),
+                            label: const Text('Manage'),
+                            style: FilledButton.styleFrom(
+                              foregroundColor: colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+class _CardCarousel extends StatefulWidget {
+  const _CardCarousel({required this.imageUrls});
+
+  final List<String> imageUrls;
+
+  @override
+  State<_CardCarousel> createState() => _CardCarouselState();
+}
+
+class _CardCarouselState extends State<_CardCarousel> {
+  final PageController _controller = PageController(viewportFraction: 1);
+  int _index = 0;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        PageView.builder(
+          controller: _controller,
+          itemCount: widget.imageUrls.length,
+          onPageChanged: (value) => setState(() => _index = value),
+          itemBuilder: (_, index) {
+            return Image.network(
+              widget.imageUrls[index],
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Container(
+                color: const Color(0xFF374151),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.image_not_supported,
+                  color: Colors.white70,
+                ),
+              ),
+            );
+          },
+        ),
+        if (widget.imageUrls.length > 1)
+          Positioned(
+            right: 8,
+            bottom: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.52),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '${_index + 1}/${widget.imageUrls.length}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

@@ -12,8 +12,9 @@ Future<void> showManageProductOptions({
 }) async {
   final productName = (product['name'] ?? 'Product').toString();
 
-  await showModalBottomSheet<void>(
+  final selectedAction = await showModalBottomSheet<String>(
     context: context,
+    useRootNavigator: true,
     builder: (sheetContext) {
       return SafeArea(
         child: Column(
@@ -23,68 +24,14 @@ Future<void> showManageProductOptions({
               leading: const Icon(Icons.edit_outlined),
               title: const Text('Update Product'),
               onTap: () {
-                Navigator.pop(sheetContext);
-                onUpdate();
+                Navigator.pop(sheetContext, 'update');
               },
             ),
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.red),
               title: const Text('Delete Product'),
-              onTap: () async {
-                Navigator.pop(sheetContext);
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (dialogContext) {
-                    return AlertDialog(
-                      title: const Text('Delete Product'),
-                      content: Text('Delete $productName permanently?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(dialogContext, false),
-                          child: const Text('Cancel'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () => Navigator.pop(dialogContext, true),
-                          child: const Text('Delete'),
-                        ),
-                      ],
-                    );
-                  },
-                );
-
-                if (confirm != true) {
-                  return;
-                }
-
-                try {
-                  await actionsService.deleteProduct(
-                    (product['id'] ?? '').toString(),
-                  );
-                  if (!isMounted()) {
-                    return;
-                  }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Product deleted.')),
-                  );
-                } on AuthException catch (error) {
-                  if (!isMounted()) {
-                    return;
-                  }
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(error.message)));
-                } catch (error) {
-                  if (!isMounted()) {
-                    return;
-                  }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Delete failed: ${error.toString().replaceFirst('Exception: ', '')}',
-                      ),
-                    ),
-                  );
-                }
+              onTap: () {
+                Navigator.pop(sheetContext, 'delete');
               },
             ),
           ],
@@ -92,4 +39,74 @@ Future<void> showManageProductOptions({
       );
     },
   );
+
+  if (selectedAction == 'update') {
+    await onUpdate();
+    return;
+  }
+
+  if (selectedAction != 'delete') {
+    return;
+  }
+
+  final confirm = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: const Text('Delete Product'),
+        content: Text('Delete $productName permanently?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (confirm != true) {
+    return;
+  }
+
+  try {
+    await actionsService.deleteProduct((product['id'] ?? '').toString());
+    if (!isMounted()) {
+      return;
+    }
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Product deleted.')));
+  } on AuthException catch (error) {
+    if (!isMounted()) {
+      return;
+    }
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(error.message)));
+  } catch (error) {
+    if (!isMounted()) {
+      return;
+    }
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Delete failed: ${error.toString().replaceFirst('Exception: ', '')}',
+        ),
+      ),
+    );
+  }
 }

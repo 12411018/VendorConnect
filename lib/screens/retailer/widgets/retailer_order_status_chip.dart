@@ -9,18 +9,31 @@ class RetailerOrderStatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final normalized = status.toLowerCase();
     Color background;
+    String label;
     switch (normalized) {
+      case 'pending':
+        background = const Color(0xFF1E40AF);
+        label = 'Order Placed';
+        break;
       case 'accepted':
-        background = const Color(0xFF14532D);
+      case 'processing':
+        background = const Color(0xFF7C2D12);
+        label = 'Out for Delivery';
         break;
       case 'rejected':
         background = const Color(0xFF7F1D1D);
+        label = 'Rejected';
         break;
       case 'delivered':
-        background = const Color(0xFF1E3A8A);
+      case 'completed':
+      case 'fulfilled':
+      case 'done':
+        background = const Color(0xFF14532D);
+        label = 'Delivered';
         break;
       default:
         background = const Color(0xFF374151);
+        label = status;
     }
 
     return Container(
@@ -30,7 +43,7 @@ class RetailerOrderStatusChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        status,
+        label,
         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
       ),
     );

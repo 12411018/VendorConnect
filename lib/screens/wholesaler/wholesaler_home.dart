@@ -4,6 +4,7 @@ import 'package:vendorlink/screens/wholesaler/products/products_page.dart';
 import 'package:vendorlink/services/auth_service.dart';
 
 import 'deliveries_page.dart';
+import 'analytics_page.dart';
 import 'orders_page.dart';
 import 'overview_page.dart';
 import 'wholesaler_profile_page.dart';
@@ -24,6 +25,7 @@ class _WholesalerHomeState extends State<WholesalerHome> {
     'Products',
     'Orders',
     'Deliveries',
+    'Analytics',
   ];
 
   final List<Widget> _pages = const [
@@ -31,6 +33,7 @@ class _WholesalerHomeState extends State<WholesalerHome> {
     ProductsPage(),
     OrdersPage(),
     DeliveriesPage(),
+    AnalyticsPage(),
   ];
 
   void _selectTab(int index) {
@@ -91,7 +94,7 @@ class _WholesalerHomeState extends State<WholesalerHome> {
                   title: const Text('Analytics'),
                   onTap: () {
                     Navigator.pop(context);
-                    _selectTab(3);
+                    _selectTab(4);
                   },
                 ),
                 ListTile(
@@ -144,6 +147,9 @@ class _WholesalerHomeState extends State<WholesalerHome> {
         currentIndex: _currentIndex,
         onTap: _selectTab,
         type: BottomNavigationBarType.fixed,
+        backgroundColor: const Color(0xFF0F172A),
+        selectedItemColor: const Color(0xFF38BDF8),
+        unselectedItemColor: const Color(0xFF94A3B8),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard_outlined),
@@ -164,6 +170,11 @@ class _WholesalerHomeState extends State<WholesalerHome> {
             icon: Icon(Icons.local_shipping_outlined),
             activeIcon: Icon(Icons.local_shipping),
             label: 'Deliveries',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.analytics_outlined),
+            activeIcon: Icon(Icons.analytics),
+            label: 'Analytics',
           ),
         ],
       ),

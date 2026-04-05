@@ -7,6 +7,7 @@ import 'package:vendorlink/screens/wholesaler/products/widgets/product_form_dial
 import 'package:vendorlink/screens/wholesaler/products/widgets/product_grid_card.dart';
 import 'package:vendorlink/screens/wholesaler/products/widgets/products_empty_state.dart';
 import 'package:vendorlink/screens/wholesaler/products/widgets/products_header.dart';
+import 'package:vendorlink/screens/wholesaler/products/widgets/wholesaler_product_detail_page.dart';
 import 'package:vendorlink/services/auth_service.dart';
 
 class ProductsPage extends StatefulWidget {
@@ -39,6 +40,16 @@ class _ProductsPageState extends State<ProductsPage> {
       actionsService: _productActionsService,
       isMounted: () => mounted,
       onUpdate: () => _showProductDialog(existing: product),
+    );
+  }
+
+  Future<void> _showProductDetails(Map<String, dynamic> product) async {
+    final item = ProductUiModel.fromMap(product);
+    await showWholesalerProductDetails(
+      context: context,
+      product: item,
+      rawProduct: product,
+      onManage: () => _showManageOptions(product),
     );
   }
 
@@ -108,6 +119,7 @@ class _ProductsPageState extends State<ProductsPage> {
             final item = ProductUiModel.fromMap(products[index]);
             return ProductGridCard(
               item: item,
+              onTap: () => _showProductDetails(products[index]),
               onManagePressed: () => _showManageOptions(products[index]),
             );
           },

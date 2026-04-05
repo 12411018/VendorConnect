@@ -31,7 +31,7 @@ class ProductActionsService {
     return imageText;
   }
 
-  Future<void> saveProduct({
+  Future<String> saveProduct({
     required bool isEdit,
     required String productId,
     required String name,
@@ -44,7 +44,7 @@ class ProductActionsService {
     required String? imageUrl,
   }) async {
     if (isEdit) {
-      await _authService.updateProductForCurrentUser(
+      return _authService.updateProductForCurrentUser(
         productId: productId,
         name: name,
         price: price,
@@ -55,10 +55,9 @@ class ProductActionsService {
         description: description,
         imageUrl: imageUrl,
       );
-      return;
     }
 
-    await _authService.addProductForCurrentUser(
+    return _authService.addProductForCurrentUser(
       name: name,
       price: price,
       quantity: quantity,
@@ -67,6 +66,16 @@ class ProductActionsService {
       type: type,
       description: description,
       imageUrl: imageUrl,
+    );
+  }
+
+  Future<void> replaceProductImages({
+    required String productId,
+    required List<String> imageUrls,
+  }) {
+    return _authService.replaceProductImagesForCurrentUser(
+      productId: productId,
+      imageUrls: imageUrls,
     );
   }
 

@@ -84,6 +84,14 @@ class VendorLinkApp extends StatelessWidget {
             ),
           ),
         ),
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+          backgroundColor: Color(0xFF0F172A),
+          selectedItemColor: Color(0xFF38BDF8),
+          unselectedItemColor: Color(0xFF94A3B8),
+          selectedLabelStyle: TextStyle(fontWeight: FontWeight.w700),
+          unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w600),
+          type: BottomNavigationBarType.fixed,
+        ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF111827),
           elevation: 0,
