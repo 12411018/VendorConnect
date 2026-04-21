@@ -11,6 +11,7 @@ class AuthService {
     required String password,
     required String name,
     required String role,
+    String? shopName,
   }) async {
     late final AuthResponse response;
     try {
@@ -18,7 +19,11 @@ class AuthService {
           .signUp(
             email: email,
             password: password,
-            data: {'name': name, 'role': role},
+            data: {
+              'name': name,
+              'role': role,
+              if ((shopName ?? '').trim().isNotEmpty) 'shop_name': shopName,
+            },
           )
           .timeout(const Duration(seconds: 20));
     } on AuthException catch (error) {
@@ -40,15 +45,14 @@ class AuthService {
     try {
       await _supabase
           .from('profiles')
-          .upsert({'id': user.id, 'name': name, 'role': role})
+          .upsert({
+            'id': user.id,
+            'name': name,
+            'role': role,
+            if ((shopName ?? '').trim().isNotEmpty) 'shop_name': shopName,
+          })
           .timeout(const Duration(seconds: 10));
-      try {
-        await _ensureCurrentUserRowInUsersTable();
-      } on AuthException catch (error) {
-        if (kDebugMode) {
-          debugPrint('[UsersSync][SignUp][Skipped] ${error.message}');
-        }
-      }
+      await _ensureCurrentUserRowInUsersTable();
     } on PostgrestException catch (error) {
       if (_supabase.auth.currentSession == null && _isRlsPolicyError(error)) {
         return;
@@ -63,14 +67,7 @@ class AuthService {
       await _supabase.auth
           .signInWithPassword(email: email, password: password)
           .timeout(const Duration(seconds: 15));
-
-      try {
-        await _ensureCurrentUserRowInUsersTable();
-      } on AuthException catch (error) {
-        if (kDebugMode) {
-          debugPrint('[UsersSync][Login][Skipped] ${error.message}');
-        }
-      }
+      await _ensureCurrentUserRowInUsersTable();
     } on AuthException catch (error) {
       throw AuthException(_humanizeAuthError(error.message));
     } on PostgrestException catch (error) {
@@ -106,6 +103,7 @@ class AuthService {
   Future<void> createProfileEntryForCurrentUser({
     required String role,
     String? name,
+    String? shopName,
   }) async {
     final user = _supabase.auth.currentUser;
     if (user == null) {
@@ -119,6 +117,7 @@ class AuthService {
             'id': user.id,
             'name': name ?? user.email?.split('@').first ?? 'User',
             'role': role,
+            if ((shopName ?? '').trim().isNotEmpty) 'shop_name': shopName,
           })
           .timeout(const Duration(seconds: 10));
     } on PostgrestException catch (error) {
@@ -154,31 +153,15 @@ class AuthService {
 
     Future<void> loadProducts() async {
       try {
-        try {
-          final rows = await _supabase
-              .from('products')
-              .select(
-                '*, product_images(image_url, sort_order), product_ratings(rating, review, created_at, retailer_id)',
-              )
-              .eq('vendor_id', user.id)
-              .order('created_at', ascending: false)
-              .timeout(const Duration(seconds: 12));
+        final rows = await _supabase
+            .from('products')
+            .select()
+            .eq('vendor_id', user.id)
+            .order('created_at', ascending: false)
+            .timeout(const Duration(seconds: 12));
 
-          final mappedRows = List<Map<String, dynamic>>.from(rows);
-          controller.add(mappedRows);
-          return;
-        } on PostgrestException {
-          final rows = await _supabase
-              .from('products')
-              .select()
-              .eq('vendor_id', user.id)
-              .order('created_at', ascending: false)
-              .timeout(const Duration(seconds: 12));
-
-          final mappedRows = List<Map<String, dynamic>>.from(rows);
-          controller.add(mappedRows);
-          return;
-        }
+        final mappedRows = List<Map<String, dynamic>>.from(rows);
+        controller.add(mappedRows);
       } on PostgrestException catch (error) {
         controller.addError(_humanizeProductsDbError(error));
       } on TimeoutException {
@@ -207,23 +190,49 @@ class AuthService {
 
     Future<void> loadProducts() async {
       try {
-        List<Map<String, dynamic>> mapped;
-        try {
-          final rows = await _supabase
-              .from('products')
-              .select(
-                '*, product_images(image_url, sort_order), product_ratings(rating, review, created_at, retailer_id)',
-              )
-              .order('created_at', ascending: false)
-              .timeout(const Duration(seconds: 12));
-          mapped = List<Map<String, dynamic>>.from(rows);
-        } on PostgrestException {
-          final rows = await _supabase
-              .from('products')
-              .select()
-              .order('created_at', ascending: false)
-              .timeout(const Duration(seconds: 12));
-          mapped = List<Map<String, dynamic>>.from(rows);
+        final rows = await _supabase
+            .from('products')
+            .select(
+              '*, vendor_profile:profiles!products_vendor_id_fkey(id, name, shop_name, phone), product_images(image_url, sort_order), product_ratings(rating, review, created_at, retailer_id)',
+            )
+            .order('created_at', ascending: false)
+            .timeout(const Duration(seconds: 12));
+
+        final mapped = List<Map<String, dynamic>>.from(rows);
+        for (final product in mapped) {
+          final vendorId = (product['vendor_id'] ?? '').toString().trim();
+          final profile = product['vendor_profile'];
+          final existingLabel = (product['vendor_name'] ?? product['vendor'])
+              .toString()
+              .trim();
+
+          if (profile is Map<String, dynamic>) {
+            final profileName = (profile['name'] ?? '').toString().trim();
+            final shopName = (profile['shop_name'] ?? '').toString().trim();
+            final phone = (profile['phone'] ?? '').toString().trim();
+
+            product['vendor_name'] = profileName.isNotEmpty
+                ? profileName
+                : (existingLabel.isNotEmpty ? existingLabel : 'Wholesaler');
+            product['vendor_shop_name'] = shopName;
+            product['vendor_phone'] = phone;
+          } else {
+            product['vendor_name'] = existingLabel.isNotEmpty
+                ? existingLabel
+                : 'Wholesaler';
+            product['vendor_shop_name'] = (product['vendor_shop_name'] ?? '')
+                .toString()
+                .trim();
+            product['vendor_phone'] = (product['vendor_phone'] ?? '')
+                .toString()
+                .trim();
+          }
+
+          if (vendorId.isEmpty) {
+            product['vendor_name'] = 'Wholesaler';
+          }
+
+          product.remove('vendor_profile');
         }
 
         if (kDebugMode) {
@@ -274,10 +283,43 @@ class AuthService {
     try {
       final rows = await _supabase
           .from('products')
-          .select()
+          .select(
+            '*, vendor_profile:profiles!products_vendor_id_fkey(id, name, shop_name, phone), product_images(image_url, sort_order), product_ratings(rating, review, created_at, retailer_id)',
+          )
           .order('created_at', ascending: false)
           .timeout(const Duration(seconds: 12));
-      return List<Map<String, dynamic>>.from(rows);
+      final mapped = List<Map<String, dynamic>>.from(rows);
+      for (final product in mapped) {
+        final profile = product['vendor_profile'];
+        final existingLabel = (product['vendor_name'] ?? product['vendor'])
+            .toString()
+            .trim();
+
+        if (profile is Map<String, dynamic>) {
+          final profileName = (profile['name'] ?? '').toString().trim();
+          final shopName = (profile['shop_name'] ?? '').toString().trim();
+          final phone = (profile['phone'] ?? '').toString().trim();
+
+          product['vendor_name'] = profileName.isNotEmpty
+              ? profileName
+              : (existingLabel.isNotEmpty ? existingLabel : 'Wholesaler');
+          product['vendor_shop_name'] = shopName;
+          product['vendor_phone'] = phone;
+        } else {
+          product['vendor_name'] = existingLabel.isNotEmpty
+              ? existingLabel
+              : 'Wholesaler';
+          product['vendor_shop_name'] = (product['vendor_shop_name'] ?? '')
+              .toString()
+              .trim();
+          product['vendor_phone'] = (product['vendor_phone'] ?? '')
+              .toString()
+              .trim();
+        }
+
+        product.remove('vendor_profile');
+      }
+      return mapped;
     } on PostgrestException catch (error) {
       throw AuthException(_humanizeProductsDbError(error));
     } on TimeoutException {
@@ -294,14 +336,27 @@ class AuthService {
 
     Future<void> loadOrders() async {
       try {
+        final retailerLocation = await _resolveCurrentRetailerLocation(
+          retailerId,
+        );
+
         final rows = await _supabase
             .from('orders')
-            .select('*, order_items(*, product:products(*))')
+            .select(
+              '*, vendor_profile:profiles!orders_vendor_id_fkey(id, name, shop_name, phone)',
+            )
             .eq('retailer_id', retailerId)
             .order('created_at', ascending: false)
             .timeout(const Duration(seconds: 12));
 
-        final mapped = List<Map<String, dynamic>>.from(rows);
+        final mapped = await _enrichOrdersWithVendorInfo(
+          List<Map<String, dynamic>>.from(rows),
+        );
+        if (retailerLocation.isNotEmpty) {
+          for (final order in mapped) {
+            order['retailer_location'] = retailerLocation;
+          }
+        }
         if (kDebugMode) {
           debugPrint(
             '[RetailerOrders] retailer=$retailerId rows=${mapped.length}',
@@ -340,6 +395,100 @@ class AuthService {
     return controller.stream;
   }
 
+  Future<List<Map<String, dynamic>>> _enrichOrdersWithVendorInfo(
+    List<Map<String, dynamic>> orders,
+  ) async {
+    if (orders.isEmpty) {
+      return orders;
+    }
+
+    for (final order in orders) {
+      final vendorProfile = order['vendor_profile'];
+      final existingName = (order['vendor_name'] ?? '').toString().trim();
+      final existingPhone = (order['vendor_phone'] ?? '').toString().trim();
+
+      if (vendorProfile is Map<String, dynamic>) {
+        final profileName = (vendorProfile['name'] ?? '').toString().trim();
+        final profileShopName = (vendorProfile['shop_name'] ?? '')
+            .toString()
+            .trim();
+        final profilePhone = (vendorProfile['phone'] ?? '').toString().trim();
+
+        order['vendor_name'] = profileName.isNotEmpty
+            ? profileName
+            : (profileShopName.isNotEmpty
+                  ? profileShopName
+                  : (existingName.isNotEmpty ? existingName : 'Wholesaler'));
+        order['vendor_phone'] = profilePhone.isNotEmpty
+            ? profilePhone
+            : existingPhone;
+      } else {
+        order['vendor_name'] = existingName.isNotEmpty
+            ? existingName
+            : 'Wholesaler';
+        order['vendor_phone'] = existingPhone;
+      }
+
+      order.remove('vendor_profile');
+    }
+
+    return orders;
+  }
+
+  Future<String> _resolveCurrentRetailerLocation(String retailerId) async {
+    // Check profiles table first (this is what gets updated by Edit Location)
+    final profileLocationColumns = <String>['location_label', 'location'];
+    for (final column in profileLocationColumns) {
+      try {
+        final profile = await _supabase
+            .from('profiles')
+            .select(column)
+            .eq('id', retailerId)
+            .maybeSingle()
+            .timeout(const Duration(seconds: 8));
+        final value = (profile?[column] ?? '').toString().trim();
+        if (value.isNotEmpty) {
+          return value;
+        }
+      } on PostgrestException catch (_) {
+        continue;
+      }
+    }
+
+    // Fallback to auth metadata
+    final metadataLocation =
+        (_supabase.auth.currentUser?.userMetadata?['location_label'] ?? '')
+            .toString()
+            .trim();
+    if (metadataLocation.isNotEmpty) {
+      return metadataLocation;
+    }
+
+    return '';
+  }
+
+  /// Public method for fetching the current retailer's saved location.
+  Future<String> fetchCurrentRetailerLocation() async {
+    final retailerId = _requireCurrentUserId();
+    return _resolveCurrentRetailerLocation(retailerId);
+  }
+
+  /// Public method for fetching the current user's phone from profiles.
+  Future<String> fetchCurrentUserPhone() async {
+    final userId = _requireCurrentUserId();
+    try {
+      final profile = await _supabase
+          .from('profiles')
+          .select('phone')
+          .eq('id', userId)
+          .maybeSingle()
+          .timeout(const Duration(seconds: 8));
+      return (profile?['phone'] ?? '').toString().trim();
+    } on PostgrestException catch (_) {
+      return '';
+    }
+  }
+
   Stream<List<Map<String, dynamic>>> watchWholesalerOrders() {
     final wholesalerId = _requireCurrentUserId();
     final controller = StreamController<List<Map<String, dynamic>>>.broadcast();
@@ -349,73 +498,18 @@ class AuthService {
       try {
         final rows = await _supabase
             .from('orders')
-            .select('*, order_items(*, product:products(*))')
+            .select()
             .eq('vendor_id', wholesalerId)
             .order('created_at', ascending: false)
             .timeout(const Duration(seconds: 12));
-
         final mappedRows = List<Map<String, dynamic>>.from(rows);
-        if (kDebugMode) {
-          debugPrint(
-            '[WholesalerOrders][Primary] vendor_id=$wholesalerId rows=${mappedRows.length}',
-          );
-          if (mappedRows.isNotEmpty) {
-            final first = mappedRows.first;
-            final firstItems = first['order_items'];
-            final itemCount = firstItems is List ? firstItems.length : 0;
-            debugPrint(
-              '[WholesalerOrders][Primary][FirstRow] order_id=${first['id']} order_number=${first['order_number']} status=${first['status']} items=$itemCount keys=${first.keys.toList()}',
-            );
-          }
-        }
-        if (mappedRows.isNotEmpty) {
-          controller.add(mappedRows);
-          return;
-        }
-
-        // Fallback for legacy/mismatched vendor_id data: show latest orders.
-        final anyRows = await _supabase
-            .from('orders')
-            .select('*, order_items(*, product:products(*))')
-            .order('created_at', ascending: false)
-            .limit(50)
-            .timeout(const Duration(seconds: 12));
-
-        if (kDebugMode) {
-          debugPrint(
-            '[WholesalerOrders][VendorMismatchFallback] vendor_id=$wholesalerId fallback_rows=${anyRows.length}',
-          );
-          if (anyRows.isNotEmpty) {
-            final first = anyRows.first;
-            final firstItems = first['order_items'];
-            final itemCount = firstItems is List ? firstItems.length : 0;
-            debugPrint(
-              '[WholesalerOrders][VendorMismatchFallback][FirstRow] order_id=${first['id']} order_number=${first['order_number']} status=${first['status']} items=$itemCount keys=${first.keys.toList()}',
-            );
-          }
-        }
-
-        controller.add(List<Map<String, dynamic>>.from(anyRows));
+        await _syncWholesalerWalletFromOrdersBestEffort(
+          wholesalerId: wholesalerId,
+          orders: mappedRows,
+        );
+        controller.add(mappedRows);
       } on PostgrestException catch (error) {
-        // Fallback to base orders query when nested relation is unavailable.
-        try {
-          final fallbackRows = await _supabase
-              .from('orders')
-              .select()
-              .eq('vendor_id', wholesalerId)
-              .order('created_at', ascending: false)
-              .timeout(const Duration(seconds: 12));
-
-          if (kDebugMode) {
-            debugPrint(
-              '[WholesalerOrders][Fallback] code=${error.code} message=${error.message}',
-            );
-          }
-
-          controller.add(List<Map<String, dynamic>>.from(fallbackRows));
-        } on PostgrestException {
-          controller.addError(_humanizeOrdersDbError(error));
-        }
+        controller.addError(_humanizeOrdersDbError(error));
       } on TimeoutException {
         controller.addError(
           'Wholesaler orders query timed out. Check internet or Supabase response.',
@@ -433,6 +527,70 @@ class AuthService {
     };
 
     return controller.stream;
+  }
+
+  Future<void> repairCurrentWholesalerWalletFromOrdersBestEffort() async {
+    final userId = _requireCurrentUserId();
+
+    try {
+      final orders = await _supabase
+          .from('orders')
+          .select('total_amount, total_price')
+          .eq('vendor_id', userId);
+      await _syncWholesalerWalletFromOrdersBestEffort(
+        wholesalerId: userId,
+        orders: List<Map<String, dynamic>>.from(orders),
+      );
+    } on PostgrestException catch (error) {
+      if (kDebugMode) {
+        debugPrint('[WalletRepair][Skipped] ${error.message}');
+      }
+    }
+  }
+
+  Future<void> _syncWholesalerWalletFromOrdersBestEffort({
+    required String wholesalerId,
+    required List<Map<String, dynamic>> orders,
+  }) async {
+    final computedWallet = orders.fold<double>(
+      0,
+      (sum, order) =>
+          sum + _toDouble(order['total_amount'] ?? order['total_price']),
+    );
+
+    if (computedWallet <= 0) {
+      return;
+    }
+
+    try {
+      final profile = await _supabase
+          .from('profiles')
+          .select('wallet_balance')
+          .eq('id', wholesalerId)
+          .maybeSingle();
+
+      final currentWallet = _toDouble(profile?['wallet_balance']);
+      final difference = (currentWallet - computedWallet).abs();
+      if (difference < 0.01) {
+        return;
+      }
+
+      try {
+        await _supabase
+            .from('profiles')
+            .update({'wallet_balance': computedWallet})
+            .eq('id', wholesalerId);
+      } on PostgrestException {
+        await _supabase.from('profiles').upsert({
+          'id': wholesalerId,
+          'wallet_balance': computedWallet,
+        });
+      }
+    } on PostgrestException catch (error) {
+      if (kDebugMode) {
+        debugPrint('[WalletSync][Skipped] ${error.message}');
+      }
+    }
   }
 
   Future<void> placeRetailerOrder({
@@ -493,7 +651,6 @@ class AuthService {
     try {
       final orderId = await _insertOrderWithFallback(payload);
       await _insertOrderItems(orderId: orderId, items: orderItems);
-      await _decrementStockBestEffort(orderItems, vendorId: vendorId);
       await _creditWholesalerWalletBestEffort(
         vendorId: vendorId,
         amount: totalAmount,
@@ -504,7 +661,6 @@ class AuthService {
         try {
           final orderId = await _insertOrderWithFallback(payload);
           await _insertOrderItems(orderId: orderId, items: orderItems);
-          await _decrementStockBestEffort(orderItems, vendorId: vendorId);
           await _creditWholesalerWalletBestEffort(
             vendorId: vendorId,
             amount: totalAmount,
@@ -524,38 +680,15 @@ class AuthService {
   }) async {
     final wholesalerId = _requireCurrentUserId();
 
-    PostgrestException? lastError;
-    final candidateStatuses = _candidateStatusesForOrderUpdate(status);
-
-    for (final candidate in candidateStatuses) {
-      try {
-        await _supabase
-            .from('orders')
-            .update({'status': candidate})
-            .eq('id', orderId)
-            .eq('vendor_id', wholesalerId);
-
-        final persisted = await _isOrderStatusPersistedForVendor(
-          orderId: orderId,
-          vendorId: wholesalerId,
-          status: candidate,
-        );
-        if (persisted) {
-          return;
-        }
-      } on PostgrestException catch (error) {
-        lastError = error;
-        if (!_isInvalidOrderStatusEnumError(error)) {
-          throw AuthException(_humanizeOrdersDbError(error));
-        }
-      }
+    try {
+      await _supabase
+          .from('orders')
+          .update({'status': status})
+          .eq('id', orderId)
+          .eq('vendor_id', wholesalerId);
+    } on PostgrestException catch (error) {
+      throw AuthException(_humanizeOrdersDbError(error));
     }
-
-    if (lastError != null) {
-      throw AuthException(_humanizeOrdersDbError(lastError));
-    }
-
-    throw const AuthException('Failed to update order status.');
   }
 
   Future<void> updateOrderStatusForRetailer({
@@ -563,188 +696,23 @@ class AuthService {
     required String status,
   }) async {
     final retailerId = _requireCurrentUserId();
-    final nowIso = DateTime.now().toUtc().toIso8601String();
 
-    PostgrestException? lastError;
-    final candidateStatuses = _candidateStatusesForOrderUpdate(status);
-
-    for (final candidate in candidateStatuses) {
-      try {
-        final payload = <String, dynamic>{'status': candidate};
-        if (_isDeliveredLikeStatus(candidate)) {
-          payload['retailer_confirmed_at'] = nowIso;
-        }
-
-        await _supabase
-            .from('orders')
-            .update(payload)
-            .eq('id', orderId)
-            .eq('retailer_id', retailerId);
-
-        final persisted = await _isOrderStatusPersistedForRetailer(
-          orderId: orderId,
-          retailerId: retailerId,
-          status: candidate,
-        );
-        if (persisted) {
-          return;
-        }
-      } on PostgrestException catch (error) {
-        lastError = error;
-        if (_isMissingRetailerConfirmedAtColumnError(error) &&
-            _isDeliveredLikeStatus(candidate)) {
-          try {
-            await _supabase
-                .from('orders')
-                .update({'status': candidate})
-                .eq('id', orderId)
-                .eq('retailer_id', retailerId);
-
-            final statusOnlyPersisted =
-                await _isOrderStatusPersistedForRetailer(
-                  orderId: orderId,
-                  retailerId: retailerId,
-                  status: candidate,
-                );
-            if (statusOnlyPersisted) {
-              return;
-            }
-          } on PostgrestException catch (statusOnlyError) {
-            lastError = statusOnlyError;
-          }
-        }
-
-        if (!_isInvalidOrderStatusEnumError(error) &&
-            !_isMissingRetailerConfirmedAtColumnError(error)) {
-          throw AuthException(_humanizeOrdersDbError(error));
-        }
-      }
+    final payload = <String, dynamic>{'status': status};
+    if (status.trim().toLowerCase() == 'delivered') {
+      payload['retailer_confirmed_at'] = DateTime.now()
+          .toUtc()
+          .toIso8601String();
     }
 
-    if (lastError != null) {
-      if (status.trim().toLowerCase() == 'delivered') {
-        try {
-          await _supabase
-              .from('orders')
-              .update({'retailer_confirmed_at': nowIso})
-              .eq('id', orderId)
-              .eq('retailer_id', retailerId);
-
-          final fallbackPersisted = await _isOrderStatusPersistedForRetailer(
-            orderId: orderId,
-            retailerId: retailerId,
-            status: 'delivered',
-          );
-          if (!fallbackPersisted) {
-            throw const AuthException(
-              'Order confirmation did not persist. Check orders update policy in Supabase.',
-            );
-          }
-          return;
-        } on PostgrestException catch (fallbackError) {
-          lastError = fallbackError;
-        } on AuthException {
-          rethrow;
-        }
-      }
-
-      throw AuthException(_humanizeOrdersDbError(lastError));
+    try {
+      await _supabase
+          .from('orders')
+          .update(payload)
+          .eq('id', orderId)
+          .eq('retailer_id', retailerId);
+    } on PostgrestException catch (error) {
+      throw AuthException(_humanizeOrdersDbError(error));
     }
-
-    throw const AuthException('Failed to update order status.');
-  }
-
-  Future<bool> _isOrderStatusPersistedForRetailer({
-    required String orderId,
-    required String retailerId,
-    required String status,
-  }) async {
-    final row = await _supabase
-        .from('orders')
-        .select('status, retailer_confirmed_at')
-        .eq('id', orderId)
-        .eq('retailer_id', retailerId)
-        .maybeSingle();
-
-    if (row == null) {
-      return false;
-    }
-
-    final confirmedAt = (row['retailer_confirmed_at'] ?? '').toString().trim();
-    if (confirmedAt.isNotEmpty) {
-      return true;
-    }
-
-    final current = (row['status'] ?? '').toString().toLowerCase();
-    if (_isDeliveredLikeStatus(status)) {
-      return _isDeliveredLikeStatus(current);
-    }
-
-    return current == status.toLowerCase();
-  }
-
-  Future<bool> _isOrderStatusPersistedForVendor({
-    required String orderId,
-    required String vendorId,
-    required String status,
-  }) async {
-    final row = await _supabase
-        .from('orders')
-        .select('status')
-        .eq('id', orderId)
-        .eq('vendor_id', vendorId)
-        .maybeSingle();
-
-    if (row == null) {
-      return false;
-    }
-
-    final current = (row['status'] ?? '').toString().toLowerCase();
-    if (_isDeliveredLikeStatus(status)) {
-      return _isDeliveredLikeStatus(current);
-    }
-    return current == status.toLowerCase();
-  }
-
-  List<String> _candidateStatusesForOrderUpdate(String requestedStatus) {
-    final normalized = requestedStatus.trim().toLowerCase();
-    if (normalized == 'pending' || normalized == 'order_placed') {
-      return const ['pending', 'accepted', 'processing'];
-    }
-    if (normalized == 'processing' ||
-        normalized == 'delivery_pending_confirmation') {
-      return const ['processing', 'accepted', 'pending'];
-    }
-    if (normalized == 'delivered') {
-      return const ['delivered', 'completed', 'fulfilled', 'done'];
-    }
-    if (normalized == 'accepted') {
-      return const ['accepted', 'confirmed', 'approved', 'processing'];
-    }
-    if (normalized == 'rejected') {
-      return const ['rejected', 'cancelled', 'canceled', 'declined'];
-    }
-    return [normalized];
-  }
-
-  bool _isInvalidOrderStatusEnumError(PostgrestException error) {
-    final text = '${error.code ?? ''} ${error.message}'.toLowerCase();
-    return text.contains('invalid input value for enum') &&
-        text.contains('order_status');
-  }
-
-  bool _isDeliveredLikeStatus(String status) {
-    final normalized = status.trim().toLowerCase();
-    return normalized == 'delivered' ||
-        normalized == 'completed' ||
-        normalized == 'fulfilled' ||
-        normalized == 'done';
-  }
-
-  bool _isMissingRetailerConfirmedAtColumnError(PostgrestException error) {
-    final text = '${error.code ?? ''} ${error.message}'.toLowerCase();
-    return text.contains("could not find the 'retailer_confirmed_at' column") ||
-        (text.contains('column') && text.contains('retailer_confirmed_at'));
   }
 
   Future<String> addProductForCurrentUser({
@@ -842,6 +810,30 @@ class AuthService {
     }
   }
 
+  Future<String> uploadProductImageForCurrentUser({
+    required Uint8List bytes,
+    required String fileExtension,
+  }) async {
+    final userId = _requireCurrentUserId();
+    final sanitizedExt = fileExtension.toLowerCase().replaceAll('.', '');
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final path = '$userId/$now.$sanitizedExt';
+
+    try {
+      await _supabase.storage
+          .from('product-images')
+          .uploadBinary(
+            path,
+            bytes,
+            fileOptions: const FileOptions(upsert: true),
+          );
+    } on StorageException catch (error) {
+      throw AuthException('Image upload failed: ${error.message}');
+    }
+
+    return _supabase.storage.from('product-images').getPublicUrl(path);
+  }
+
   Future<void> replaceProductImagesForCurrentUser({
     required String productId,
     required List<String> imageUrls,
@@ -891,50 +883,99 @@ class AuthService {
     String? review,
   }) async {
     final retailerId = _requireCurrentUserId();
-    final clampedRating = rating.clamp(1, 5);
 
     try {
       await _supabase.from('product_ratings').upsert({
         'product_id': productId,
         'retailer_id': retailerId,
-        'rating': clampedRating,
+        'rating': rating,
         'review': (review ?? '').trim().isEmpty ? null : review?.trim(),
       }, onConflict: 'product_id,retailer_id');
     } on PostgrestException catch (error) {
-      if ((error.message).toLowerCase().contains('product_ratings')) {
-        throw const AuthException(
-          'Rating table not found. Run latest Supabase migration for ratings.',
-        );
+      if (error.message.toLowerCase().contains('product_ratings')) {
+        return;
       }
-      throw AuthException(_humanizeProductsDbError(error));
+      throw AuthException(error.message);
     }
-  }
-
-  Future<String> uploadProductImageForCurrentUser({
-    required Uint8List bytes,
-    required String fileExtension,
-  }) async {
-    final userId = _requireCurrentUserId();
-    final sanitizedExt = fileExtension.toLowerCase().replaceAll('.', '');
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final path = '$userId/$now.$sanitizedExt';
-
-    try {
-      await _supabase.storage
-          .from('product-images')
-          .uploadBinary(
-            path,
-            bytes,
-            fileOptions: const FileOptions(upsert: true),
-          );
-    } on StorageException catch (error) {
-      throw AuthException('Image upload failed: ${error.message}');
-    }
-
-    return _supabase.storage.from('product-images').getPublicUrl(path);
   }
 
   Session? get currentSession => _supabase.auth.currentSession;
+  User? get currentUser => _supabase.auth.currentUser;
+
+  Future<void> updateCurrentUserName({required String name}) async {
+    final userId = _requireCurrentUserId();
+    final clean = name.trim();
+    if (clean.isEmpty) {
+      return;
+    }
+
+    await _supabase.from('profiles').upsert({'id': userId, 'name': clean});
+  }
+
+  Future<void> updateCurrentUserPhone({required String phone}) async {
+    final userId = _requireCurrentUserId();
+    await _upsertProfileFieldWithFallback(
+      userId: userId,
+      field: 'phone',
+      value: phone.trim(),
+    );
+  }
+
+  Future<void> updateCurrentUserLocation({
+    required String locationLabel,
+    double? latitude,
+    double? longitude,
+  }) async {
+    final userId = _requireCurrentUserId();
+    final cleanLabel = locationLabel.trim();
+
+    // Also update auth user metadata so it stays in sync
+    try {
+      await _supabase.auth.updateUser(
+        UserAttributes(
+          data: {
+            'location_label': cleanLabel,
+            if (latitude != null) 'latitude': latitude,
+            if (longitude != null) 'longitude': longitude,
+          },
+        ),
+      );
+    } catch (_) {
+      // Non-critical: metadata sync failed, profile table is the source of truth
+    }
+
+    try {
+      await _supabase.from('profiles').upsert({
+        'id': userId,
+        'location_label': cleanLabel,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+      });
+      return;
+    } on PostgrestException catch (error) {
+      final message = error.message.toLowerCase();
+      if (!(message.contains('location_label') ||
+          message.contains('latitude') ||
+          message.contains('longitude'))) {
+        rethrow;
+      }
+    }
+
+    await _supabase.from('profiles').upsert({
+      'id': userId,
+      'location': cleanLabel,
+      if (latitude != null) 'lat': latitude,
+      if (longitude != null) 'lng': longitude,
+    });
+  }
+
+  Future<void> updateCurrentUserShopName({required String shopName}) async {
+    final userId = _requireCurrentUserId();
+    await _supabase.from('profiles').upsert({
+      'id': userId,
+      'shop_name': shopName.trim(),
+    });
+  }
 
   String _requireCurrentUserId() {
     final user = _supabase.auth.currentUser;
@@ -1001,10 +1042,11 @@ class AuthService {
             .insert(insertPayload)
             .select('id')
             .single();
-        final productId = (inserted['id'] ?? '').toString();
-        if (productId.isNotEmpty) {
-          return productId;
+        final id = (inserted['id'] ?? '').toString();
+        if (id.isNotEmpty) {
+          return id;
         }
+        return '';
       } on PostgrestException catch (error) {
         final missingColumn = _extractKnownMissingProductColumn(error.message);
         if (missingColumn == null ||
@@ -1019,6 +1061,77 @@ class AuthService {
     throw const AuthException(
       'Product add failed due to products table mismatch. Please verify required columns.',
     );
+  }
+
+  Future<void> _upsertProfileFieldWithFallback({
+    required String userId,
+    required String field,
+    required String value,
+    String? fallbackField,
+  }) async {
+    final clean = value.trim();
+    final payload = {'id': userId, field: clean};
+
+    try {
+      await _supabase.from('profiles').upsert(payload);
+      return;
+    } on PostgrestException catch (error) {
+      if (fallbackField == null ||
+          !error.message.toLowerCase().contains(field.toLowerCase())) {
+        rethrow;
+      }
+    }
+
+    await _supabase.from('profiles').upsert({
+      'id': userId,
+      fallbackField: clean,
+    });
+  }
+
+  Future<void> _creditWholesalerWalletBestEffort({
+    required String vendorId,
+    required double amount,
+  }) async {
+    if (vendorId.trim().isEmpty || amount <= 0) {
+      return;
+    }
+
+    try {
+      await _supabase.rpc(
+        'credit_wholesaler_wallet',
+        params: {'p_vendor_id': vendorId, 'p_amount': amount},
+      );
+    } on PostgrestException catch (error) {
+      if (kDebugMode) {
+        debugPrint('[WalletCredit][RPC Failed] ${error.message}');
+      }
+
+      try {
+        final profile = await _supabase
+            .from('profiles')
+            .select('wallet_balance')
+            .eq('id', vendorId)
+            .maybeSingle();
+
+        if (profile == null) {
+          return;
+        }
+
+        final currentBalance = _toDouble(profile['wallet_balance']);
+        final updatedBalance = currentBalance + amount;
+
+        await _supabase
+            .from('profiles')
+            .update({'wallet_balance': updatedBalance})
+            .eq('id', vendorId);
+      } on PostgrestException catch (fallbackError) {
+        if (kDebugMode) {
+          debugPrint(
+            '[WalletCredit][Fallback Failed] ${fallbackError.message}',
+          );
+        }
+      }
+    }
   }
 
   String? _extractKnownMissingProductColumn(String message) {
@@ -1082,7 +1195,7 @@ class AuthService {
     try {
       final profile = await _supabase
           .from('profiles')
-          .select('name, role')
+          .select('name, role, shop_name')
           .eq('id', userId)
           .maybeSingle();
       if (profile == null) {
@@ -1092,6 +1205,7 @@ class AuthService {
       return {
         'full_name': (profile['name'] ?? '').toString(),
         'role': (profile['role'] ?? 'wholesaler').toString(),
+        'shop_name': (profile['shop_name'] ?? '').toString(),
       };
     } on PostgrestException {
       return null;
@@ -1111,8 +1225,8 @@ class AuthService {
     final phoneFromMetadata = metadata?['phone'] as String?;
     final profileRole = await getUserRole();
     final resolvedRole =
-        _normalizeRole(roleFromMetadata) ??
-        _normalizeRole(profileRole) ??
+        _normalizeUsersTableRole(roleFromMetadata) ??
+        _normalizeUsersTableRole(profileRole) ??
         'retailer';
     final resolvedFullName = nameFromMetadata ?? fallbackName;
     final resolvedPhone = phoneFromMetadata?.trim();
@@ -1138,21 +1252,23 @@ class AuthService {
     String? phone,
   }) async {
     final cleanFullName = (fullName ?? '').trim();
-    final cleanRole = _normalizeRole(role) ?? 'retailer';
+    final cleanRole = _normalizeUsersTableRole(role) ?? 'retailer';
     final cleanPhone = (phone ?? '').trim();
 
     final payloads = <Map<String, dynamic>>[
       {
         'id': userId,
-        'full_name': cleanFullName.isNotEmpty ? cleanFullName : 'User',
-        'role': cleanRole,
+        if (cleanFullName.isNotEmpty) 'full_name': cleanFullName,
+        if (cleanRole.isNotEmpty) 'role': cleanRole,
         if (cleanPhone.isNotEmpty) 'phone': cleanPhone,
       },
       {
         'id': userId,
-        'full_name': cleanFullName.isNotEmpty ? cleanFullName : 'User',
-        'role': cleanRole,
+        if (cleanFullName.isNotEmpty) 'name': cleanFullName,
+        if (cleanRole.isNotEmpty) 'role': cleanRole,
+        if (cleanPhone.isNotEmpty) 'phone': cleanPhone,
       },
+      {'id': userId, if (cleanRole.isNotEmpty) 'role': cleanRole},
     ];
 
     PostgrestException? lastError;
@@ -1170,10 +1286,13 @@ class AuthService {
     }
   }
 
-  String? _normalizeRole(String? role) {
+  String? _normalizeUsersTableRole(String? role) {
     final normalized = (role ?? '').trim().toLowerCase();
-    if (normalized == 'wholesaler' || normalized == 'retailer') {
-      return normalized;
+    if (normalized == 'retailer') {
+      return 'retailer';
+    }
+    if (normalized == 'wholesaler' || normalized == 'vendor') {
+      return 'vendor';
     }
     return null;
   }
@@ -1307,144 +1426,6 @@ class AuthService {
     await _supabase.from('order_items').insert(payload);
   }
 
-  Future<void> _decrementStockBestEffort(
-    List<Map<String, dynamic>> orderItems, {
-    String? vendorId,
-  }) async {
-    final requestedQtyByProduct = <String, int>{};
-    for (final item in orderItems) {
-      final productId = (item['product_id'] ?? '').toString().trim();
-      if (productId.isEmpty) {
-        throw const AuthException('Each order item must include a product id.');
-      }
-      final qty = _toPositiveInt(item['quantity']);
-      requestedQtyByProduct.update(
-        productId,
-        (existing) => existing + qty,
-        ifAbsent: () => qty,
-      );
-    }
-
-    if (requestedQtyByProduct.isEmpty) {
-      return;
-    }
-
-    final productIds = requestedQtyByProduct.keys.toList(growable: false);
-
-    // Preferred path: use DB function to bypass retailer-side RLS safely.
-    var allUpdatedWithRpc = true;
-    for (final entry in requestedQtyByProduct.entries) {
-      final updated = await _decrementStockViaRpcBestEffort(
-        productId: entry.key,
-        quantity: entry.value,
-        vendorId: vendorId,
-      );
-      if (!updated) {
-        allUpdatedWithRpc = false;
-        break;
-      }
-    }
-    if (allUpdatedWithRpc) {
-      return;
-    }
-    final rows = await _supabase
-        .from('products')
-        .select('id, name, stock_qty')
-        .inFilter('id', productIds)
-        .timeout(const Duration(seconds: 12));
-
-    final products = List<Map<String, dynamic>>.from(rows);
-    final byId = <String, Map<String, dynamic>>{
-      for (final row in products) (row['id'] ?? '').toString(): row,
-    };
-
-    for (final entry in requestedQtyByProduct.entries) {
-      final product = byId[entry.key];
-      if (product == null) {
-        continue;
-      }
-      final available = _toNonNegativeInt(product['stock_qty']);
-      final requested = entry.value;
-      final newStock = (available - requested).clamp(0, 1 << 30);
-
-      try {
-        await _supabase
-            .from('products')
-            .update({'stock_qty': newStock})
-            .eq('id', entry.key)
-            .eq('stock_qty', available);
-      } on PostgrestException catch (error) {
-        if (kDebugMode) {
-          debugPrint('[StockDecrement][Skipped] ${error.message}');
-        }
-      }
-    }
-  }
-
-  Future<void> _creditWholesalerWalletBestEffort({
-    required String vendorId,
-    required double amount,
-  }) async {
-    if (vendorId.trim().isEmpty || amount <= 0) {
-      return;
-    }
-
-    try {
-      await _supabase.rpc(
-        'credit_wholesaler_wallet',
-        params: {'p_vendor_id': vendorId, 'p_amount': amount},
-      );
-    } on PostgrestException catch (error) {
-      if (kDebugMode) {
-        debugPrint('[WalletCredit][Skipped] ${error.message}');
-      }
-    }
-  }
-
-  Future<bool> _decrementStockViaRpcBestEffort({
-    required String productId,
-    required int quantity,
-    String? vendorId,
-  }) async {
-    try {
-      final response = await _supabase.rpc(
-        'decrement_product_stock',
-        params: {
-          'p_product_id': productId,
-          'p_quantity': quantity,
-          'p_vendor_id': vendorId,
-        },
-      );
-
-      if (response is bool) {
-        return response;
-      }
-      if (response is num) {
-        return response != 0;
-      }
-      if (response is String) {
-        return response.toLowerCase() == 'true';
-      }
-
-      // If RPC exists and returns anything else, treat as success to avoid
-      // falling back to retailer-side updates that may be blocked by RLS.
-      return true;
-    } on PostgrestException catch (error) {
-      if (_isMissingRpcFunction(error, 'decrement_product_stock')) {
-        return false;
-      }
-      if (kDebugMode) {
-        debugPrint('[StockDecrement][RPCSkipped] ${error.message}');
-      }
-      return false;
-    }
-  }
-
-  bool _isMissingRpcFunction(PostgrestException error, String functionName) {
-    final text = '${error.code ?? ''} ${error.message}'.toLowerCase();
-    return text.contains('does not exist') && text.contains(functionName);
-  }
-
   String _generateOrderNumber() {
     return 'ORD-${DateTime.now().millisecondsSinceEpoch}';
   }
@@ -1456,15 +1437,6 @@ class AuthService {
         ? value.toInt()
         : int.tryParse(value?.toString() ?? '') ?? 1;
     return parsed <= 0 ? 1 : parsed;
-  }
-
-  int _toNonNegativeInt(dynamic value) {
-    final parsed = value is int
-        ? value
-        : value is double
-        ? value.toInt()
-        : int.tryParse(value?.toString() ?? '') ?? 0;
-    return parsed < 0 ? 0 : parsed;
   }
 
   double _toDouble(dynamic value) {

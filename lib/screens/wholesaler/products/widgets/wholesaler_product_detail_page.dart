@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:vendorlink/screens/wholesaler/products/models/product_ui_model.dart';
+import 'package:vendorlink/services/date_time_service.dart';
 
 Future<void> showWholesalerProductDetails({
   required BuildContext context,
@@ -214,7 +215,7 @@ class _RatingTile extends StatelessWidget {
               const Spacer(),
               if (created.isNotEmpty)
                 Text(
-                  created.length >= 10 ? created.substring(0, 10) : created,
+                  DateTimeService.formatDateOnlyIst(created),
                   style: const TextStyle(
                     color: Color(0xFF94A3B8),
                     fontSize: 12,
@@ -330,11 +331,17 @@ class _ImageCarouselState extends State<_ImageCarousel> {
           itemCount: widget.imageUrls.length,
           onPageChanged: (value) => setState(() => _index = value),
           itemBuilder: (_, index) {
-            return Image.network(
-              widget.imageUrls[index],
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
-                  _ImagePlaceholder(name: widget.fallbackName),
+            return Container(
+              color: const Color(0xFF0B1220),
+              alignment: Alignment.center,
+              child: Image.network(
+                widget.imageUrls[index],
+                fit: BoxFit.contain,
+                width: double.infinity,
+                height: double.infinity,
+                errorBuilder: (_, __, ___) =>
+                    _ImagePlaceholder(name: widget.fallbackName),
+              ),
             );
           },
         ),

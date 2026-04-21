@@ -14,6 +14,7 @@ class RetailerOrderStatusChip extends StatelessWidget {
       case 'pending':
         background = const Color(0xFF1E40AF);
         label = 'Order Placed';
+
         break;
       case 'accepted':
       case 'processing':

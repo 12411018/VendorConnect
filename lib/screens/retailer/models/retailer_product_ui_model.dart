@@ -12,6 +12,9 @@ class RetailerProductUiModel {
     required this.imageUrls,
     required this.ratingAverage,
     required this.ratingCount,
+    required this.vendorName,
+    required this.vendorShopName,
+    required this.vendorPhone,
   });
 
   final String id;
@@ -26,6 +29,9 @@ class RetailerProductUiModel {
   final List<String> imageUrls;
   final double ratingAverage;
   final int ratingCount;
+  final String vendorName;
+  final String vendorShopName;
+  final String vendorPhone;
 
   List<String> get galleryImages {
     if (imageUrls.isNotEmpty) {
@@ -73,6 +79,15 @@ class RetailerProductUiModel {
       imageUrls: _productImageUrls(product),
       ratingAverage: _ratingAverage(product),
       ratingCount: _ratingCount(product),
+      vendorName: (product['vendor_name'] ?? 'Wholesaler').toString().trim(),
+      vendorShopName:
+          (product['vendor_shop_name'] ??
+                  product['shop_name'] ??
+                  product['vendor_business_name'] ??
+                  '')
+              .toString()
+              .trim(),
+      vendorPhone: (product['vendor_phone'] ?? '').toString().trim(),
     );
   }
 
@@ -91,7 +106,7 @@ class RetailerProductUiModel {
         (product['image_url'] ?? product['imageUrl'] ?? product['image'])
             ?.toString()
             .trim();
-    return rawValue == null ? '' : rawValue;
+    return rawValue ?? '';
   }
 
   static List<String> _productImageUrls(Map<String, dynamic> product) {

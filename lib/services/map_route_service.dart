@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:vendorlink/config/map_config.dart';
@@ -16,9 +17,6 @@ class MapRouteService {
     required double toLng,
   }) async {
     final fallback = <LatLng>[LatLng(fromLat, fromLng), LatLng(toLat, toLng)];
-    if (!MapConfig.hasGeoapifyKey) {
-      return fallback;
-    }
 
     final cacheKey =
         '${fromLat.toStringAsFixed(5)},${fromLng.toStringAsFixed(5)}|${toLat.toStringAsFixed(5)},${toLng.toStringAsFixed(5)}';
@@ -28,43 +26,157 @@ class MapRouteService {
     }
 
     try {
-      final uri = Uri.parse(
-        'https://api.geoapify.com/v1/routing?waypoints=$fromLat,$fromLng|$toLat,$toLng&mode=drive&apiKey=${MapConfig.geoapifyApiKey}',
+      final geoapifyPoints = await _fetchGeoapifyRoute(
+        fromLat: fromLat,
+        fromLng: fromLng,
+        toLat: toLat,
+        toLng: toLng,
       );
-      final response = await http.get(uri).timeout(const Duration(seconds: 12));
-      if (response.statusCode != 200) {
-        return fallback;
+      if (geoapifyPoints.length >= 2) {
+        _cache[cacheKey] = geoapifyPoints;
+        return geoapifyPoints;
       }
 
-      final decoded = jsonDecode(response.body);
-      if (decoded is! Map<String, dynamic>) {
-        return fallback;
+      final osrmPoints = await _fetchOsrmRoute(
+        fromLat: fromLat,
+        fromLng: fromLng,
+        toLat: toLat,
+        toLng: toLng,
+      );
+      if (osrmPoints.length >= 2) {
+        _cache[cacheKey] = osrmPoints;
+        return osrmPoints;
       }
-
-      final features = decoded['features'];
-      if (features is! List || features.isEmpty) {
-        return fallback;
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint('[MapRouteService] route fetch failed: $error');
       }
+    }
 
-      final feature = features.first;
-      if (feature is! Map<String, dynamic>) {
-        return fallback;
+    if (kDebugMode) {
+      debugPrint('[MapRouteService] using straight-line fallback route');
+    }
+    return fallback;
+  }
+
+  Future<List<LatLng>> _fetchGeoapifyRoute({
+    required double fromLat,
+    required double fromLng,
+    required double toLat,
+    required double toLng,
+  }) async {
+    if (!MapConfig.hasGeoapifyKey) {
+      return const <LatLng>[];
+    }
+
+    final uri = Uri.parse(
+      'https://api.geoapify.com/v1/routing?waypoints=$fromLng,$fromLat|$toLng,$toLat&mode=drive&apiKey=${MapConfig.geoapifyApiKey}',
+    );
+    final response = await http.get(uri).timeout(const Duration(seconds: 12));
+    if (response.statusCode != 200) {
+      if (kDebugMode) {
+        debugPrint(
+          '[MapRouteService][Geoapify] non-200: ${response.statusCode} ${response.body}',
+        );
       }
+      return const <LatLng>[];
+    }
 
-      final geometry = feature['geometry'];
-      if (geometry is! Map<String, dynamic>) {
-        return fallback;
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map<String, dynamic>) {
+      return const <LatLng>[];
+    }
+
+    final features = decoded['features'];
+    if (features is! List || features.isEmpty) {
+      return const <LatLng>[];
+    }
+
+    final feature = features.first;
+    if (feature is! Map<String, dynamic>) {
+      return const <LatLng>[];
+    }
+
+    final geometry = feature['geometry'];
+    if (geometry is! Map<String, dynamic>) {
+      return const <LatLng>[];
+    }
+
+    final points = _extractGeoJsonPoints(geometry);
+    if (kDebugMode) {
+      debugPrint('[MapRouteService][Geoapify] points=${points.length}');
+    }
+    return points;
+  }
+
+  Future<List<LatLng>> _fetchOsrmRoute({
+    required double fromLat,
+    required double fromLng,
+    required double toLat,
+    required double toLng,
+  }) async {
+    final uri = Uri.parse(
+      'https://router.project-osrm.org/route/v1/driving/$fromLng,$fromLat;$toLng,$toLat?overview=full&geometries=geojson',
+    );
+    final response = await http.get(uri).timeout(const Duration(seconds: 12));
+    if (response.statusCode != 200) {
+      if (kDebugMode) {
+        debugPrint('[MapRouteService][OSRM] non-200: ${response.statusCode}');
       }
+      return const <LatLng>[];
+    }
 
-      final geometryType = (geometry['type'] ?? '').toString();
-      final coordinates = geometry['coordinates'];
-      if (coordinates is! List) {
-        return fallback;
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map<String, dynamic>) {
+      return const <LatLng>[];
+    }
+
+    final routes = decoded['routes'];
+    if (routes is! List || routes.isEmpty) {
+      return const <LatLng>[];
+    }
+
+    final firstRoute = routes.first;
+    if (firstRoute is! Map<String, dynamic>) {
+      return const <LatLng>[];
+    }
+
+    final geometry = firstRoute['geometry'];
+    if (geometry is! Map<String, dynamic>) {
+      return const <LatLng>[];
+    }
+
+    final points = _extractGeoJsonPoints(geometry);
+    if (kDebugMode) {
+      debugPrint('[MapRouteService][OSRM] points=${points.length}');
+    }
+    return points;
+  }
+
+  List<LatLng> _extractGeoJsonPoints(Map<String, dynamic> geometry) {
+    final geometryType = (geometry['type'] ?? '').toString();
+    final coordinates = geometry['coordinates'];
+    if (coordinates is! List) {
+      return const <LatLng>[];
+    }
+
+    final points = <LatLng>[];
+    if (geometryType == 'LineString') {
+      for (final coordinate in coordinates) {
+        if (coordinate is List && coordinate.length >= 2) {
+          final lng = _toDouble(coordinate[0]);
+          final lat = _toDouble(coordinate[1]);
+          if (lat != null && lng != null) {
+            points.add(LatLng(lat, lng));
+          }
+        }
       }
-
-      final points = <LatLng>[];
-      if (geometryType == 'LineString') {
-        for (final coordinate in coordinates) {
+    } else if (geometryType == 'MultiLineString') {
+      for (final segment in coordinates) {
+        if (segment is! List) {
+          continue;
+        }
+        for (final coordinate in segment) {
           if (coordinate is List && coordinate.length >= 2) {
             final lng = _toDouble(coordinate[0]);
             final lat = _toDouble(coordinate[1]);
@@ -73,34 +185,10 @@ class MapRouteService {
             }
           }
         }
-      } else if (geometryType == 'MultiLineString') {
-        for (final segment in coordinates) {
-          if (segment is! List) {
-            continue;
-          }
-          for (final coordinate in segment) {
-            if (coordinate is List && coordinate.length >= 2) {
-              final lng = _toDouble(coordinate[0]);
-              final lat = _toDouble(coordinate[1]);
-              if (lat != null && lng != null) {
-                points.add(LatLng(lat, lng));
-              }
-            }
-          }
-        }
-      } else {
-        return fallback;
       }
-
-      if (points.length < 2) {
-        return fallback;
-      }
-
-      _cache[cacheKey] = points;
-      return points;
-    } catch (_) {
-      return fallback;
     }
+
+    return points;
   }
 
   double? _toDouble(dynamic value) {

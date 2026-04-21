@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vendorlink/screens/auth/signup_screen.dart';
 import 'package:vendorlink/screens/retailer/retailer_dashboard.dart';
-import 'package:vendorlink/screens/wholesaler/wholesaler_home.dart';
+import 'package:vendorlink/screens/wholesaler/tabs/wholesaler_home.dart';
 import 'package:vendorlink/services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {

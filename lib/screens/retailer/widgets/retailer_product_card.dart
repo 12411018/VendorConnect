@@ -91,6 +91,24 @@ class RetailerProductCard extends StatelessWidget {
                       fontSize: 12,
                     ),
                   ),
+                  const SizedBox(height: 2),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _ProductMetaChip(
+                        label: product.vendorName.isEmpty
+                            ? 'Wholesaler'
+                            : product.vendorName,
+                        icon: Icons.person_outline,
+                      ),
+                      if (product.vendorShopName.trim().isNotEmpty)
+                        _ProductMetaChip(
+                          label: product.vendorShopName,
+                          icon: Icons.storefront_outlined,
+                        ),
+                    ],
+                  ),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
@@ -222,12 +240,18 @@ class _ProductImageCarouselState extends State<_ProductImageCarousel> {
             });
           },
           itemBuilder: (context, index) {
-            return Image.network(
-              widget.imageUrls[index],
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) {
-                return _ProductImagePlaceholder(name: widget.fallbackName);
-              },
+            return Container(
+              color: const Color(0xFF0B1220),
+              alignment: Alignment.center,
+              child: Image.network(
+                widget.imageUrls[index],
+                fit: BoxFit.contain,
+                width: double.infinity,
+                height: double.infinity,
+                errorBuilder: (_, __, ___) {
+                  return _ProductImagePlaceholder(name: widget.fallbackName);
+                },
+              ),
             );
           },
         ),

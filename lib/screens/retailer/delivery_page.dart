@@ -134,7 +134,7 @@ class RetailerDeliveryPage extends StatelessWidget {
                                 ),
                                 SizedBox(height: 6),
                                 Text(
-                                  'Map hidden after confirmation. The order stays in your history.',
+                                  'No Orders Yet.',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     color: Color(0xFFCBD5E1),

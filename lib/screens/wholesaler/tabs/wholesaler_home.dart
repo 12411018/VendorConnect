@@ -7,7 +7,7 @@ import 'deliveries_page.dart';
 import 'analytics_page.dart';
 import 'orders_page.dart';
 import 'overview_page.dart';
-import 'wholesaler_profile_page.dart';
+import '../wholesaler_profile_page.dart';
 
 class WholesalerHome extends StatefulWidget {
   const WholesalerHome({super.key});
@@ -52,10 +52,17 @@ class _WholesalerHomeState extends State<WholesalerHome> {
           builder: (context, snapshot) {
             final user = _authService.currentSession?.user;
             final profile = snapshot.data;
+            final metadataName = user?.userMetadata?['name']?.toString().trim();
+            final profileName = (profile?['name'] as String?)?.trim();
+            final emailPrefix = user?.email?.split('@').first.trim();
             final businessName =
-                (profile?['name'] as String?) ??
-                user?.email?.split('@').first ??
-                'My Business';
+                (metadataName != null && metadataName.isNotEmpty)
+                ? metadataName
+                : (profileName != null && profileName.isNotEmpty)
+                ? profileName
+                : (emailPrefix != null && emailPrefix.isNotEmpty)
+                ? emailPrefix
+                : 'My Business';
             final businessEmail = user?.email ?? 'No email';
 
             return ListView(
@@ -72,6 +79,11 @@ class _WholesalerHomeState extends State<WholesalerHome> {
                     backgroundColor: Colors.white,
                     child: Icon(Icons.business, size: 30, color: Colors.black),
                   ),
+                ),
+                const ListTile(
+                  leading: Icon(Icons.location_on_outlined),
+                  title: Text('Business Location'),
+                  subtitle: Text('PICT College, Dhankawadi, Pune'),
                 ),
                 ListTile(
                   leading: const Icon(Icons.dashboard_outlined),

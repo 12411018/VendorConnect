@@ -14,6 +14,7 @@ class SignUpScreen extends StatefulWidget {
 class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
+  final _shopNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -30,6 +31,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   void dispose() {
     _retryTimer?.cancel();
     _fullNameController.dispose();
+    _shopNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -106,6 +108,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
         password: _passwordController.text,
         name: _fullNameController.text.trim(),
         role: _accountType,
+        shopName: _accountType == 'wholesaler'
+            ? _shopNameController.text.trim()
+            : null,
       );
 
       if (!mounted) {
@@ -212,6 +217,34 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 },
                               ),
                               const SizedBox(height: 14),
+                              if (_accountType == 'wholesaler') ...[
+                                TextFormField(
+                                  controller: _shopNameController,
+                                  decoration: InputDecoration(
+                                    labelText: 'Shop Name',
+                                    prefixIcon: const Icon(
+                                      Icons.storefront_outlined,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    if (_accountType != 'wholesaler') {
+                                      return null;
+                                    }
+                                    final shop = (value ?? '').trim();
+                                    if (shop.isEmpty) {
+                                      return 'Please enter shop name';
+                                    }
+                                    if (shop.length < 2) {
+                                      return 'Shop name must be at least 2 characters';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 14),
+                              ],
                               TextFormField(
                                 controller: _emailController,
                                 keyboardType: TextInputType.emailAddress,

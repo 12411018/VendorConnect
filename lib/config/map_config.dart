@@ -3,7 +3,7 @@ class MapConfig {
   static const double marketplaceLat = 18.4578;
   static const double marketplaceLng = 73.8509;
 
-  // Optional direct key for local testing.
+
   static const String embeddedGeoapifyApiKey =
       'dfd7f8580f3741cbae4a39a09eea4ab2';
 

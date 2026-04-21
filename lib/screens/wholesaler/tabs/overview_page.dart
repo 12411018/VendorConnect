@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../services/auth_service.dart';
-import '../../widgets/dashboard_card.dart';
+import '../../../services/auth_service.dart';
+import '../../../services/date_time_service.dart';
+import '../../../widgets/dashboard_card.dart';
 
 class OverviewPage extends StatefulWidget {
   const OverviewPage({super.key});
@@ -12,6 +13,12 @@ class OverviewPage extends StatefulWidget {
 
 class _OverviewPageState extends State<OverviewPage> {
   final AuthService _authService = AuthService();
+
+  @override
+  void initState() {
+    super.initState();
+    _authService.repairCurrentWholesalerWalletFromOrdersBestEffort();
+  }
 
   double _toAmount(dynamic value) {
     if (value is num) {
@@ -35,6 +42,25 @@ class _OverviewPageState extends State<OverviewPage> {
             final profile = profileSnapshot.data ?? const <String, dynamic>{};
             final orders =
                 ordersSnapshot.data ?? const <Map<String, dynamic>>[];
+            final metadataName = _authService
+                .currentSession
+                ?.user
+                .userMetadata?['name']
+                ?.toString()
+                .trim();
+            final profileName = (profile['name'] ?? '').toString().trim();
+            final emailPrefix = _authService.currentSession?.user.email
+                ?.split('@')
+                .first
+                .trim();
+            final wholesalerName =
+                (metadataName != null && metadataName.isNotEmpty)
+                ? metadataName
+                : profileName.isNotEmpty
+                ? profileName
+                : (emailPrefix != null && emailPrefix.isNotEmpty)
+                ? emailPrefix
+                : 'Wholesaler';
 
             final walletBalance = _toAmount(profile['wallet_balance']);
             final totalOrders = orders.length;
@@ -44,21 +70,9 @@ class _OverviewPageState extends State<OverviewPage> {
                   sum +
                   _toAmount(order['total_amount'] ?? order['total_price']),
             );
-            final deliveredRevenue = orders
-                .where(
-                  (order) =>
-                      (order['status'] ?? '').toString().toLowerCase() ==
-                      'delivered',
-                )
-                .fold<double>(
-                  0,
-                  (sum, order) =>
-                      sum +
-                      _toAmount(order['total_amount'] ?? order['total_price']),
-                );
-            final displayedWalletBalance = walletBalance > 0
-                ? walletBalance
-                : deliveredRevenue;
+            final displayedWalletBalance = totalRevenue > walletBalance
+                ? totalRevenue
+                : walletBalance;
             final processingOrders = orders
                 .where(
                   (order) =>
@@ -90,13 +104,6 @@ class _OverviewPageState extends State<OverviewPage> {
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.14),
-                          blurRadius: 22,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -107,7 +114,7 @@ class _OverviewPageState extends State<OverviewPage> {
                               width: 48,
                               height: 48,
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.14),
+                                color: Colors.white10,
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: const Icon(
@@ -116,12 +123,12 @@ class _OverviewPageState extends State<OverviewPage> {
                               ),
                             ),
                             const SizedBox(width: 12),
-                            const Expanded(
+                            Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Sales Dashboard',
+                                    'Sales Dashboard - $wholesalerName',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 22,
@@ -134,6 +141,15 @@ class _OverviewPageState extends State<OverviewPage> {
                                     style: TextStyle(
                                       color: Color(0xFFD1D5DB),
                                       fontSize: 13,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    'Location: PICT College, Dhankawadi, Pune',
+                                    style: TextStyle(
+                                      color: Color(0xFFBFDBFE),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ],
@@ -394,7 +410,9 @@ class _OrderHistoryTile extends StatelessWidget {
               Expanded(
                 child: _InfoBlock(
                   label: 'Created',
-                  value: createdAt.isEmpty ? 'Just now' : createdAt,
+                  value: DateTimeService.formatToIst(
+                    createdAt.isEmpty ? null : createdAt,
+                  ),
                 ),
               ),
             ],
