@@ -228,7 +228,6 @@ class _RetailerProductsTabState extends State<RetailerProductsTab> {
   }
 }
 
-// ─── Helper functions ───
 
 List<String> _extractFilterOptions(
   List<Map<String, dynamic>> products,

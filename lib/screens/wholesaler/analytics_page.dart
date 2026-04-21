@@ -228,8 +228,14 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     final soldCounts = <String, int>{};
     final currentStock = <String, int>{};
     final productLookup = <String, Map<String, dynamic>>{};
+    final productLookupById = <String, Map<String, dynamic>>{};
 
     for (final product in products) {
+      final productId = (product['id'] ?? '').toString();
+      if (productId.isNotEmpty) {
+        productLookupById[productId] = product;
+      }
+      
       final productName = (product['name'] ?? 'Product').toString().trim();
       if (productName.isEmpty) {
         continue;
@@ -250,10 +256,21 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       final rawItems = order['order_items'];
       if (rawItems is List) {
         for (final item in rawItems.whereType<Map<String, dynamic>>()) {
-          final product = item['product'];
-          final productName = product is Map<String, dynamic>
-              ? (product['name'] ?? 'Product').toString()
-              : (item['product_name'] ?? 'Product').toString();
+          final productId = (item['product_id'] ?? '').toString();
+          final productFromLookup = productLookupById[productId];
+          
+          final product = item['product'] ?? item['products'];
+          String productName = 'Product';
+          
+          if (productFromLookup != null) {
+            productName = (productFromLookup['name'] ?? 'Product').toString();
+          } else if (product is Map<String, dynamic>) {
+            productName = (product['name'] ?? 'Product').toString();
+          } else if (product is List && product.isNotEmpty && product.first is Map<String, dynamic>) {
+            productName = (product.first['name'] ?? 'Product').toString();
+          } else if (item['product_name'] != null) {
+            productName = item['product_name'].toString();
+          }
 
           final qtyRaw = item['quantity'] ?? 1;
           final qty = qtyRaw is num

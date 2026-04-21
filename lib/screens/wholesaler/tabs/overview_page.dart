@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../services/auth_service.dart';
 import '../../../services/date_time_service.dart';
-import '../../../widgets/dashboard_card.dart';
+import '../widgets/dashboard_card.dart';
 
 class OverviewPage extends StatefulWidget {
   const OverviewPage({super.key});

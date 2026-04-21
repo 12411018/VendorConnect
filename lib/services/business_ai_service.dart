@@ -12,16 +12,6 @@ class BusinessAiService {
   );
   static const String _mistralModel = 'mistral-small-latest';
 
-  // Optional embedded key for local testing. Prefer dart-define in production.
-  static const String _embeddedGeminiApiKey = '';
-  static const String _envGeminiApiKey = String.fromEnvironment(
-    'GEMINI_API_KEY',
-  );
-  static const String _envGoogleApiKey = String.fromEnvironment(
-    'GOOGLE_API_KEY',
-  );
-  static const String _geminiModel = 'gemini-2.5-flash';
-
   String get _mistralApiKey {
     final embedded = _embeddedMistralApiKey.trim();
     if (embedded.isNotEmpty) {
@@ -30,29 +20,15 @@ class BusinessAiService {
     return _envMistralApiKey.trim();
   }
 
-  String get _geminiApiKey {
-    final embedded = _embeddedGeminiApiKey.trim();
-    if (embedded.isNotEmpty) {
-      return embedded;
-    }
-
-    final gemini = _envGeminiApiKey.trim();
-    if (gemini.isNotEmpty) {
-      return gemini;
-    }
-
-    return _envGoogleApiKey.trim();
-  }
-
   Future<String> generateNextSteps({required String businessSummary}) async {
     return _generateText(
       prompt:
           'You are an inventory and sales advisor for a wholesale business. '
-          'Based on this summary, provide 5 short, practical next actions. '
+          'Based on this exact summary:\n$businessSummary\n\n'
+          'Provide 5 short, practical next actions based ONLY on the data. '
           'Keep output concise, numbered, and operational. '
           'Return plain text only. Do not use markdown, bold text, bullets like -, *, or headings. '
-          'Use one relevant emoji at the start of each numbered point. '
-          'Summary: $businessSummary',
+          'Use one relevant emoji at the start of each numbered point.',
       fallback: _localFallback(businessSummary),
     );
   }
@@ -60,13 +36,10 @@ class BusinessAiService {
   Future<String> generateStockPlan({required String stockSummary}) async {
     return _generateText(
       prompt:
-          'You are a stock planning assistant for a wholesale business. '
-          'Use the data to identify low-stock items, high-stock items, slow-moving items, '
-          'and give a practical next-week plan. Be explicit about what to restock more, '
-          'what to keep lower, and what to promote. Output 5 concise numbered points. '
-          'Return plain text only. Do not use markdown, bold text, bullets like -, *, or headings. '
-          'Use one relevant emoji at the start of each numbered point. '
-          'Stock data: $stockSummary',
+          'You are a strict stock planner. Your ONLY source of truth is this exact data:\n$stockSummary\n\n'
+          'List 5 next-week actions based ONLY on the products explicitly named in the data. '
+          'CRITICAL: Do not invent any product names. If a product is not in the data, do not mention it. '
+          'Output 5 concise numbered points with an emoji at the start. Return plain text only (no bold, no markdown, no headings).',
       fallback: _stockFallback(stockSummary),
     );
   }
@@ -80,47 +53,7 @@ class BusinessAiService {
       return _formatForUi(mistralText);
     }
 
-    final apiKey = _geminiApiKey;
-    if (apiKey.isEmpty) {
-      return _formatForUi(fallback);
-    }
 
-    try {
-      final uri = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/$_geminiModel:generateContent?key=$apiKey',
-      );
-
-      final response = await http.post(
-        uri,
-        headers: const {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'contents': [
-            {
-              'parts': [
-                {'text': prompt},
-              ],
-            },
-          ],
-          'generationConfig': {'temperature': 0.4, 'maxOutputTokens': 280},
-        }),
-      );
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final body = jsonDecode(response.body) as Map<String, dynamic>;
-        final text = _extractGeneratedText(body);
-        if (text.isNotEmpty) {
-          return _formatForUi(text);
-        }
-      } else if (kDebugMode) {
-        debugPrint(
-          '[BusinessAiService][Gemini] ${response.statusCode}: ${response.body}',
-        );
-      }
-    } catch (error) {
-      if (kDebugMode) {
-        debugPrint('[BusinessAiService][Gemini][Exception] $error');
-      }
-    }
 
     return _formatForUi(fallback);
   }
@@ -217,48 +150,7 @@ class BusinessAiService {
     return '';
   }
 
-  String _extractGeneratedText(Map<String, dynamic> body) {
-    final candidates = body['candidates'];
-    if (candidates is! List || candidates.isEmpty) {
-      return '';
-    }
 
-    for (final candidate in candidates) {
-      if (candidate is! Map<String, dynamic>) {
-        continue;
-      }
-
-      final content = candidate['content'];
-      if (content is! Map<String, dynamic>) {
-        continue;
-      }
-
-      final parts = content['parts'];
-      if (parts is! List || parts.isEmpty) {
-        continue;
-      }
-
-      final buffer = StringBuffer();
-      for (final part in parts) {
-        if (part is Map<String, dynamic>) {
-          final text = (part['text'] ?? '').toString().trim();
-          if (text.isNotEmpty) {
-            if (buffer.isNotEmpty) {
-              buffer.writeln();
-            }
-            buffer.write(text);
-          }
-        }
-      }
-
-      final generated = buffer.toString().trim();
-      if (generated.isNotEmpty) {
-        return generated;
-      }
-    }
-
-    return '';
-  }
 
   String _localFallback(String summary) {
     return '1. Increase stock for top 3 frequently bought products this week.\n'

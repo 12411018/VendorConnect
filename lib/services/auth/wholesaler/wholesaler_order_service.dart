@@ -10,7 +10,7 @@ extension AuthWholesalerOrderService on AuthService {
       try {
         final rows = await _supabase
             .from('orders')
-            .select()
+            .select('*, order_items(*, product:products(*))')
             .eq('vendor_id', wholesalerId)
             .order('created_at', ascending: false)
             .timeout(const Duration(seconds: 12));
