@@ -1,32 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:vendorlink/config/map_config.dart';
 import 'package:vendorlink/screens/retailer/widgets/retailer_order_status_chip.dart';
+import 'package:vendorlink/screens/wholesaler/widgets/order_route_map_screen.dart';
+import 'package:vendorlink/services/auth_service.dart';
 
-class RetailerOrdersTab extends StatelessWidget {
-  const RetailerOrdersTab({
-    super.key,
-    required this.ordersStream,
-    required this.marketplaceLat,
-    required this.marketplaceLng,
-    required this.onOpenMap,
-    required this.onConfirmDelivery,
-  });
+class RetailerOrdersTab extends StatefulWidget {
+  const RetailerOrdersTab({super.key});
 
-  final Stream<List<Map<String, dynamic>>> ordersStream;
-  final double marketplaceLat;
-  final double marketplaceLng;
-  final void Function({
-    required double paymentLat,
-    required double paymentLng,
-    required double marketplaceLat,
-    required double marketplaceLng,
-  })
-  onOpenMap;
-  final Future<void> Function(String orderId) onConfirmDelivery;
+  @override
+  State<RetailerOrdersTab> createState() => _RetailerOrdersTabState();
+}
+
+class _RetailerOrdersTabState extends State<RetailerOrdersTab> {
+  static const double _marketplaceLat = MapConfig.marketplaceLat;
+  static const double _marketplaceLng = MapConfig.marketplaceLng;
+
+  final AuthService _authService = AuthService();
+  late final Stream<List<Map<String, dynamic>>> _ordersStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _ordersStream = _authService.watchRetailerOrders();
+  }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: ordersStream,
+      stream: _ordersStream,
       builder: (context, snapshot) {
         final orders = snapshot.data ?? const [];
 
@@ -53,205 +54,199 @@ class RetailerOrdersTab extends StatelessWidget {
           separatorBuilder: (_, __) => const SizedBox(height: 10),
           itemBuilder: (context, index) {
             final order = orders[index];
-            final orderNumber = (order['order_number'] ?? order['id'] ?? '-')
-                .toString();
-            final shippingName = (order['shipping_name'] ?? 'Retailer')
-                .toString();
-            final profileLocation = (order['retailer_location'] ?? '')
-                .toString()
-                .trim();
-            final shippingAddress = profileLocation.isNotEmpty
-                ? profileLocation
-                : (order['shipping_address'] ?? 'Address not available')
-                      .toString();
-            final wholesalerName = (order['vendor_name'] ?? 'Wholesaler')
-                .toString();
-            final wholesalerPhone = (order['vendor_phone'] ?? '')
-                .toString()
-                .trim();
-            final status = (order['status'] ?? 'pending').toString();
-            final normalizedStatus = status.toLowerCase();
-            final totalAmount =
-                (order['total_amount'] ?? order['total_price'] ?? 0).toString();
-            final items = _extractOrderItems(order);
-            final orderId = (order['id'] ?? '').toString();
-
-            final paymentLat =
-                _toDoubleOrNull(order['payment_lat']) ?? marketplaceLat;
-            final paymentLng =
-                _toDoubleOrNull(order['payment_lng']) ?? marketplaceLng;
-            final orderMarketplaceLat =
-                _toDoubleOrNull(order['marketplace_lat']) ?? marketplaceLat;
-            final orderMarketplaceLng =
-                _toDoubleOrNull(order['marketplace_lng']) ?? marketplaceLng;
-
-            return Card(
-              color: const Color(0xFF111827),
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Order #$orderNumber',
-                                style: const TextStyle(
-                                  color: Color(0xFFF8FAFC),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Deliver to: $shippingName',
-                                style: const TextStyle(
-                                  color: Color(0xFFCBD5E1),
-                                ),
-                              ),
-                              Text(
-                                shippingAddress,
-                                style: const TextStyle(
-                                  color: Color(0xFF94A3B8),
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Wholesaler: $wholesalerName',
-                                style: const TextStyle(
-                                  color: Color(0xFFCBD5E1),
-                                ),
-                              ),
-                              Text(
-                                wholesalerPhone.isEmpty
-                                    ? 'Contact: Not available'
-                                    : 'Contact: $wholesalerPhone',
-                                style: const TextStyle(
-                                  color: Color(0xFF94A3B8),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        RetailerOrderStatusChip(status: status),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Total amount: ₹$totalAmount',
-                      style: const TextStyle(
-                        color: Color(0xFF93C5FD),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    if (items.isNotEmpty) ...[
-                      const Text(
-                        'Items',
-                        style: TextStyle(
-                          color: Color(0xFFE5E7EB),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ...items
-                          .take(4)
-                          .map(
-                            (item) => Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Row(
-                                children: [
-                                  _OrderItemThumb(
-                                    imageUrl: _itemImageUrl(item),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      _formatItemLabel(item),
-                                      style: const TextStyle(
-                                        color: Color(0xFFD1D5DB),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                      if (items.length > 4)
-                        Text(
-                          '+ ${items.length - 4} more items',
-                          style: const TextStyle(color: Color(0xFF9CA3AF)),
-                        ),
-                    ],
-                    const SizedBox(height: 12),
-                    _buildOrderMessage(status),
-                    const SizedBox(height: 8),
-                    if (normalizedStatus != 'rejected')
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton.icon(
-                          onPressed: () {
-                            onOpenMap(
-                              paymentLat: paymentLat,
-                              paymentLng: paymentLng,
-                              marketplaceLat: orderMarketplaceLat,
-                              marketplaceLng: orderMarketplaceLng,
-                            );
-                          },
-                          icon: const Icon(Icons.map_outlined),
-                          label: const Text('Track Delivery on Map'),
-                        ),
-                      ),
-                    if (normalizedStatus == 'processing' ||
-                        normalizedStatus == 'accepted')
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: orderId.isEmpty
-                              ? null
-                              : () async {
-                                  final messenger = ScaffoldMessenger.of(
-                                    context,
-                                  );
-                                  try {
-                                    await onConfirmDelivery(orderId);
-                                    messenger.showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Delivery marked as completed.',
-                                        ),
-                                      ),
-                                    );
-                                  } catch (error) {
-                                    messenger.showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Confirmation failed: ${error.toString().replaceFirst('Exception: ', '')}',
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                },
-                          icon: const Icon(Icons.check_circle_outline),
-                          label: const Text('Confirm Delivery Received'),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            );
+            return _buildOrderCard(order);
           },
         );
       },
     );
   }
+
+  Widget _buildOrderCard(Map<String, dynamic> order) {
+    final orderNumber = (order['order_number'] ?? order['id'] ?? '-')
+        .toString();
+    final shippingName = (order['shipping_name'] ?? 'Retailer').toString();
+    final profileLocation = (order['retailer_location'] ?? '')
+        .toString()
+        .trim();
+    final shippingAddress = profileLocation.isNotEmpty
+        ? profileLocation
+        : (order['shipping_address'] ?? 'Address not available').toString();
+    final wholesalerName = (order['vendor_name'] ?? 'Wholesaler').toString();
+    final wholesalerPhone = (order['vendor_phone'] ?? '').toString().trim();
+    final status = (order['status'] ?? 'pending').toString();
+    final normalizedStatus = status.toLowerCase();
+    final totalAmount =
+        (order['total_amount'] ?? order['total_price'] ?? 0).toString();
+    final items = _extractOrderItems(order);
+    final orderId = (order['id'] ?? '').toString();
+
+    final paymentLat =
+        _toDoubleOrNull(order['payment_lat']) ?? _marketplaceLat;
+    final paymentLng =
+        _toDoubleOrNull(order['payment_lng']) ?? _marketplaceLng;
+    final orderMarketplaceLat =
+        _toDoubleOrNull(order['marketplace_lat']) ?? _marketplaceLat;
+    final orderMarketplaceLng =
+        _toDoubleOrNull(order['marketplace_lng']) ?? _marketplaceLng;
+
+    return Card(
+      color: const Color(0xFF111827),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Order #$orderNumber',
+                        style: const TextStyle(
+                          color: Color(0xFFF8FAFC),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Deliver to: $shippingName',
+                        style: const TextStyle(color: Color(0xFFCBD5E1)),
+                      ),
+                      Text(
+                        shippingAddress,
+                        style: const TextStyle(color: Color(0xFF94A3B8)),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Wholesaler: $wholesalerName',
+                        style: const TextStyle(color: Color(0xFFCBD5E1)),
+                      ),
+                      Text(
+                        wholesalerPhone.isEmpty
+                            ? 'Contact: Not available'
+                            : 'Contact: $wholesalerPhone',
+                        style: const TextStyle(color: Color(0xFF94A3B8)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                RetailerOrderStatusChip(status: status),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Total amount: ₹$totalAmount',
+              style: const TextStyle(
+                color: Color(0xFF93C5FD),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 10),
+            if (items.isNotEmpty) ...[
+              const Text(
+                'Items',
+                style: TextStyle(
+                  color: Color(0xFFE5E7EB),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...items
+                  .take(4)
+                  .map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          _OrderItemThumb(imageUrl: _itemImageUrl(item)),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              _formatItemLabel(item),
+                              style: const TextStyle(
+                                color: Color(0xFFD1D5DB),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              if (items.length > 4)
+                Text(
+                  '+ ${items.length - 4} more items',
+                  style: const TextStyle(color: Color(0xFF9CA3AF)),
+                ),
+            ],
+            const SizedBox(height: 12),
+            _buildOrderMessage(status),
+            const SizedBox(height: 8),
+            if (normalizedStatus != 'rejected')
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => OrderRouteMapScreen(
+                          paymentLat: paymentLat,
+                          paymentLng: paymentLng,
+                          marketplaceLat: orderMarketplaceLat,
+                          marketplaceLng: orderMarketplaceLng,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.map_outlined),
+                  label: const Text('Track Delivery on Map'),
+                ),
+              ),
+            if (normalizedStatus == 'processing' ||
+                normalizedStatus == 'accepted')
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: orderId.isEmpty
+                      ? null
+                      : () => _confirmDelivery(orderId),
+                  icon: const Icon(Icons.check_circle_outline),
+                  label: const Text('Confirm Delivery Received'),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDelivery(String orderId) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await _authService.updateOrderStatusForRetailer(
+        orderId: orderId,
+        status: 'delivered',
+      );
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Delivery marked as completed.')),
+      );
+    } catch (error) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Confirmation failed: ${error.toString().replaceFirst('Exception: ', '')}',
+          ),
+        ),
+      );
+    }
+  }
 }
+
+// ─── Private widgets ───
 
 class _OrderItemThumb extends StatelessWidget {
   const _OrderItemThumb({required this.imageUrl});
@@ -286,10 +281,10 @@ class _OrderItemThumb extends StatelessWidget {
   }
 }
 
+// ─── Helper functions ───
+
 double? _toDoubleOrNull(dynamic value) {
-  if (value is num) {
-    return value.toDouble();
-  }
+  if (value is num) return value.toDouble();
   return double.tryParse((value ?? '').toString());
 }
 
@@ -300,9 +295,7 @@ List<Map<String, dynamic>> _extractOrderItems(Map<String, dynamic> order) {
   }
 
   final productName = (order['product_name'] ?? order['name'] ?? '').toString();
-  if (productName.isEmpty) {
-    return const [];
-  }
+  if (productName.isEmpty) return const [];
 
   return <Map<String, dynamic>>[
     {
@@ -334,9 +327,7 @@ double _itemUnitPrice(Map<String, dynamic> item) {
   final totalPrice = _toDoubleOrNull(item['total_price']);
   if (totalPrice != null && quantity > 0) {
     final derived = totalPrice / quantity;
-    if (derived > 0) {
-      return derived;
-    }
+    if (derived > 0) return derived;
   }
 
   final candidates = <dynamic>[
@@ -349,9 +340,7 @@ double _itemUnitPrice(Map<String, dynamic> item) {
 
   for (final candidate in candidates) {
     final value = _toDoubleOrNull(candidate);
-    if (value != null && value > 0) {
-      return value;
-    }
+    if (value != null && value > 0) return value;
   }
 
   return 0;
@@ -371,9 +360,7 @@ String _itemImageUrl(Map<String, dynamic> item) {
         (product['image_url'] ?? product['imageUrl'] ?? product['image'])
             .toString()
             .trim();
-    if (fromProduct.isNotEmpty) {
-      return fromProduct;
-    }
+    if (fromProduct.isNotEmpty) return fromProduct;
   }
 
   final fallback = (item['image_url'] ?? item['imageUrl'] ?? item['image'])

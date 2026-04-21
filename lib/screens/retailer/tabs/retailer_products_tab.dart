@@ -1,58 +1,62 @@
 import 'package:flutter/material.dart';
+import 'package:vendorlink/screens/retailer/models/retailer_cart.dart';
 import 'package:vendorlink/screens/retailer/models/retailer_product_ui_model.dart';
 import 'package:vendorlink/screens/retailer/widgets/retailer_product_card.dart';
+import 'package:vendorlink/screens/retailer/widgets/retailer_product_detail_sheet.dart';
 import 'package:vendorlink/screens/retailer/widgets/retailer_products_empty_state.dart';
 import 'package:vendorlink/screens/retailer/widgets/retailer_products_header.dart';
+import 'package:vendorlink/services/auth_service.dart';
 
-class RetailerProductsTab extends StatelessWidget {
-  const RetailerProductsTab({
-    super.key,
-    required this.productsStream,
-    required this.searchController,
-    required this.searchQuery,
-    required this.categoryFilter,
-    required this.typeFilter,
-    required this.onSearchChanged,
-    required this.onCategoryChanged,
-    required this.onTypeChanged,
-    required this.onRefresh,
-    required this.onOpenProductDetails,
-    required this.onAddToCart,
-  });
+class RetailerProductsTab extends StatefulWidget {
+  const RetailerProductsTab({super.key, required this.cart});
 
-  final Stream<List<Map<String, dynamic>>> productsStream;
-  final TextEditingController searchController;
-  final String searchQuery;
-  final String categoryFilter;
-  final String typeFilter;
-  final ValueChanged<String> onSearchChanged;
-  final ValueChanged<String> onCategoryChanged;
-  final ValueChanged<String> onTypeChanged;
-  final Future<void> Function() onRefresh;
-  final Future<void> Function(Map<String, dynamic> product)
-  onOpenProductDetails;
-  final void Function(Map<String, dynamic> product) onAddToCart;
+  final RetailerCart cart;
+
+  @override
+  State<RetailerProductsTab> createState() => _RetailerProductsTabState();
+}
+
+class _RetailerProductsTabState extends State<RetailerProductsTab> {
+  final AuthService _authService = AuthService();
+  final TextEditingController _searchController = TextEditingController();
+  late final Stream<List<Map<String, dynamic>>> _productsStream;
+
+  String _searchQuery = '';
+  String _categoryFilter = 'All';
+  String _typeFilter = 'All';
+
+  @override
+  void initState() {
+    super.initState();
+    _productsStream = _authService.watchMarketplaceProducts();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: productsStream,
+      stream: _productsStream,
       builder: (context, snapshot) {
         final products = snapshot.data ?? const <Map<String, dynamic>>[];
         final categories = _extractFilterOptions(products, 'category');
         final types = _extractFilterOptions(products, 'type');
-        final effectiveCategory = categories.contains(categoryFilter)
-            ? categoryFilter
+        final effectiveCategory = categories.contains(_categoryFilter)
+            ? _categoryFilter
             : 'All';
-        final effectiveType = types.contains(typeFilter) ? typeFilter : 'All';
+        final effectiveType = types.contains(_typeFilter) ? _typeFilter : 'All';
         final filtered = _filterProducts(
           products,
           selectedCategory: effectiveCategory,
           selectedType: effectiveType,
-          searchQuery: searchQuery,
+          searchQuery: _searchQuery,
         );
         final hasActiveFilters =
-            searchQuery.isNotEmpty ||
+            _searchQuery.isNotEmpty ||
             effectiveCategory != 'All' ||
             effectiveType != 'All';
         final visibleProducts =
@@ -78,7 +82,7 @@ class RetailerProductsTab extends StatelessWidget {
           content = const Center(child: CircularProgressIndicator());
         } else {
           content = RefreshIndicator(
-            onRefresh: onRefresh,
+            onRefresh: () => _authService.fetchMarketplaceProducts(),
             child: _buildProductList(products, visibleProducts),
           );
         }
@@ -90,14 +94,26 @@ class RetailerProductsTab extends StatelessWidget {
               child: RetailerProductsHeader(
                 summaryText: summaryText,
                 productCount: visibleProducts.length,
-                searchController: searchController,
+                searchController: _searchController,
                 categoryValue: effectiveCategory,
                 categoryOptions: categories,
                 typeValue: effectiveType,
                 typeOptions: types,
-                onSearchChanged: onSearchChanged,
-                onCategoryChanged: onCategoryChanged,
-                onTypeChanged: onTypeChanged,
+                onSearchChanged: (value) {
+                  setState(() {
+                    _searchQuery = value.trim().toLowerCase();
+                  });
+                },
+                onCategoryChanged: (value) {
+                  setState(() {
+                    _categoryFilter = value;
+                  });
+                },
+                onTypeChanged: (value) {
+                  setState(() {
+                    _typeFilter = value;
+                  });
+                },
               ),
             ),
             Expanded(child: content),
@@ -112,9 +128,9 @@ class RetailerProductsTab extends StatelessWidget {
     List<Map<String, dynamic>> visibleProducts,
   ) {
     final hasFilters =
-        searchQuery.isNotEmpty ||
-        categoryFilter != 'All' ||
-        typeFilter != 'All';
+        _searchQuery.isNotEmpty ||
+        _categoryFilter != 'All' ||
+        _typeFilter != 'All';
     final productsToRender = visibleProducts.isNotEmpty
         ? visibleProducts
         : allProducts;
@@ -164,10 +180,10 @@ class RetailerProductsTab extends StatelessWidget {
                   final productModel = RetailerProductUiModel.fromMap(product);
                   return RetailerProductCard(
                     product: productModel,
-                    onTap: () => _handleOpenProductDetails(context, product),
+                    onTap: () => _openProductDetails(product),
                     onAddToCart: productId.isEmpty
                         ? null
-                        : () => _handleAddToCart(context, product),
+                        : () => _addToCart(product),
                   );
                 },
               );
@@ -178,17 +194,41 @@ class RetailerProductsTab extends StatelessWidget {
     );
   }
 
-  Future<void> _handleOpenProductDetails(
-    BuildContext context,
-    Map<String, dynamic> product,
-  ) async {
-    await onOpenProductDetails(product);
+  Future<void> _openProductDetails(Map<String, dynamic> product) async {
+    final productModel = RetailerProductUiModel.fromMap(product);
+    await showRetailerProductDetails(
+      context: context,
+      product: productModel,
+      onAddToCart: () => _addToCart(product),
+      onRate: (rating, review) async {
+        await _authService.submitProductRating(
+          productId: productModel.id,
+          rating: rating,
+          review: review,
+        );
+      },
+    );
   }
 
-  void _handleAddToCart(BuildContext context, Map<String, dynamic> product) {
-    onAddToCart(product);
+  void _addToCart(Map<String, dynamic> product) {
+    final productId = (product['id'] ?? '').toString();
+    if (productId.isEmpty) return;
+
+    if (RetailerProductUiModel.fromMap(product).stockQty <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This product is out of stock.')),
+      );
+      return;
+    }
+
+    widget.cart.addToCart(productId, product);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Added to cart.')),
+    );
   }
 }
+
+// ─── Helper functions ───
 
 List<String> _extractFilterOptions(
   List<Map<String, dynamic>> products,
