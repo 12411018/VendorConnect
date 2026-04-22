@@ -1,4 +1,4 @@
-part of '../../auth_service.dart';
+part of '../auth_service.dart';
 
 extension AuthWholesalerProductService on AuthService {
   Stream<List<Map<String, dynamic>>> watchCurrentUserProducts() {
@@ -14,7 +14,7 @@ extension AuthWholesalerProductService on AuthService {
       try {
         final rows = await _supabase
             .from('products')
-            .select()
+            .select('*')
             .eq('vendor_id', user.id)
             .order('created_at', ascending: false)
             .timeout(const Duration(seconds: 12));
@@ -59,12 +59,16 @@ extension AuthWholesalerProductService on AuthService {
       'name': name,
       'price': price,
       'stock_qty': quantity,
-      'sku': (sku ?? '').trim().isEmpty ? null : sku?.trim(),
+      'sku': (sku ?? '').trim().isEmpty
+          ? 'SKU-${DateTime.now().millisecondsSinceEpoch}'
+          : sku?.trim(),
       'category': (category ?? '').trim().isEmpty ? null : category?.trim(),
       'type': (type ?? '').trim().isEmpty ? null : type?.trim(),
       'description': (description ?? '').trim().isEmpty
           ? null
-          : description?.trim(),
+          : (description!.trim().length > 500
+              ? description.trim().substring(0, 500)
+              : description.trim()),
       'image_url': (imageUrl ?? '').trim().isEmpty ? null : imageUrl?.trim(),
     };
 
@@ -161,53 +165,15 @@ extension AuthWholesalerProductService on AuthService {
     return _supabase.storage.from('product-images').getPublicUrl(path);
   }
 
-  Future<void> replaceProductImagesForCurrentUser({
-    required String productId,
-    required List<String> imageUrls,
-  }) async {
-    final userId = requireCurrentUserId();
-    final normalizedUrls = imageUrls
-        .map((url) => url.trim())
-        .where((url) => url.isNotEmpty)
-        .toList(growable: false);
 
-    try {
-      await _supabase
-          .from('product_images')
-          .delete()
-          .eq('product_id', productId)
-          .eq('vendor_id', userId);
-
-      if (normalizedUrls.isEmpty) {
-        return;
-      }
-
-      final payload = normalizedUrls
-          .asMap()
-          .entries
-          .map((entry) {
-            return {
-              'product_id': productId,
-              'vendor_id': userId,
-              'image_url': entry.value,
-              'sort_order': entry.key,
-            };
-          })
-          .toList(growable: false);
-
-      await _supabase.from('product_images').insert(payload);
-    } on PostgrestException catch (error) {
-      if ((error.message).toLowerCase().contains('product_images')) {
-        return;
-      }
-      throw AuthException(humanizeProductsDbError(error));
-    }
-  }
 
   Future<String> insertProductWithFallback(Map<String, dynamic> payload) async {
     final insertPayload = Map<String, dynamic>.from(payload);
 
-    for (var attempt = 0; attempt < 3; attempt++) {
+    // Fields to progressively remove if index row size is exceeded
+    const largeTextFields = ['description', 'image_url', 'category', 'type'];
+
+    for (var attempt = 0; attempt < 5; attempt++) {
       try {
         final inserted = await _supabase
             .from('products')
@@ -220,6 +186,28 @@ extension AuthWholesalerProductService on AuthService {
         }
         return '';
       } on PostgrestException catch (error) {
+        final message = error.message.toLowerCase();
+
+        // Handle index row size exceeded
+        if (message.contains('index row requires') ||
+            message.contains('maximum size is 8191')) {
+          // Remove the next large text field and retry
+          final removedField = largeTextFields
+              .cast<String?>()
+              .firstWhere(
+                (f) => insertPayload.containsKey(f) && insertPayload[f] != null,
+                orElse: () => null,
+              );
+          if (removedField != null) {
+            insertPayload[removedField] = null;
+            continue;
+          }
+          throw AuthException(
+            'Product text fields are too large for the database index. '
+            'Remove the index on text columns in Supabase, or shorten the product details.',
+          );
+        }
+
         final missingColumn = extractKnownMissingProductColumn(error.message);
         if (missingColumn == null ||
             !insertPayload.containsKey(missingColumn)) {

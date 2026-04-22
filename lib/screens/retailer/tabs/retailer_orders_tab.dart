@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:vendorlink/config/map_config.dart';
 import 'package:vendorlink/screens/retailer/widgets/retailer_order_status_chip.dart';
 import 'package:vendorlink/screens/wholesaler/widgets/order_route_map_screen.dart';
-import 'package:vendorlink/services/auth_service.dart';
+import 'package:vendorlink/services/auth/auth_service.dart';
 
 class RetailerOrdersTab extends StatefulWidget {
   const RetailerOrdersTab({super.key});

@@ -37,7 +37,6 @@ class _WholesalerProductDetailPage extends StatelessWidget {
     final category = (rawProduct['category'] ?? '-').toString().trim();
     final type = (rawProduct['type'] ?? '-').toString().trim();
     final sku = product.sku.trim().isEmpty ? '-' : product.sku.trim();
-    final ratings = _extractRatings(rawProduct);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B1120),
@@ -68,11 +67,19 @@ class _WholesalerProductDetailPage extends StatelessWidget {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(20),
-              child: product.galleryImages.isEmpty
+              child: product.imageUrl.isEmpty
                   ? _ImagePlaceholder(name: product.name)
-                  : _ImageCarousel(
-                      imageUrls: product.galleryImages,
-                      fallbackName: product.name,
+                  : Container(
+                      color: const Color(0xFF0B1220),
+                      alignment: Alignment.center,
+                      child: Image.network(
+                        product.imageUrl,
+                        fit: BoxFit.contain,
+                        width: double.infinity,
+                        height: double.infinity,
+                        errorBuilder: (_, __, ___) =>
+                            _ImagePlaceholder(name: product.name),
+                      ),
                     ),
             ),
           ),
@@ -113,120 +120,11 @@ class _WholesalerProductDetailPage extends StatelessWidget {
                 _MetaChip(icon: Icons.sell_outlined, label: type),
             ],
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              const Icon(Icons.star_rounded, color: Color(0xFFF59E0B)),
-              const SizedBox(width: 6),
-              Text(
-                '${product.ratingAverage.toStringAsFixed(1)} (${product.ratingCount} ratings)',
-                style: const TextStyle(
-                  color: Color(0xFFE2E8F0),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 12),
           Text(
             product.description,
             style: const TextStyle(color: Color(0xFFCBD5E1), height: 1.45),
           ),
-          const SizedBox(height: 18),
-          const Text(
-            'Customer Ratings',
-            style: TextStyle(
-              color: Color(0xFFF8FAFC),
-              fontWeight: FontWeight.w800,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 8),
-          if (ratings.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF111827),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF334155)),
-              ),
-              child: const Text(
-                'No ratings yet from retailers.',
-                style: TextStyle(color: Color(0xFF94A3B8)),
-              ),
-            )
-          else
-            ...ratings.map(
-              (rating) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _RatingTile(rating: rating),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  List<Map<String, dynamic>> _extractRatings(Map<String, dynamic> item) {
-    final relation = item['product_ratings'];
-    if (relation is! List) {
-      return const <Map<String, dynamic>>[];
-    }
-
-    return relation
-        .whereType<Map<String, dynamic>>()
-        .map((row) => Map<String, dynamic>.from(row))
-        .toList(growable: false);
-  }
-}
-
-class _RatingTile extends StatelessWidget {
-  const _RatingTile({required this.rating});
-
-  final Map<String, dynamic> rating;
-
-  @override
-  Widget build(BuildContext context) {
-    final score = (rating['rating'] ?? 0).toString();
-    final review = (rating['review'] ?? '').toString().trim();
-    final created = (rating['created_at'] ?? '').toString();
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF111827),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF334155)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.star, color: Color(0xFFF59E0B), size: 18),
-              const SizedBox(width: 4),
-              Text(
-                '$score / 5',
-                style: const TextStyle(
-                  color: Color(0xFFE2E8F0),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const Spacer(),
-              if (created.isNotEmpty)
-                Text(
-                  DateTimeService.formatDateOnlyIst(created),
-                  style: const TextStyle(
-                    color: Color(0xFF94A3B8),
-                    fontSize: 12,
-                  ),
-                ),
-            ],
-          ),
-          if (review.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(review, style: const TextStyle(color: Color(0xFFCBD5E1))),
-          ],
         ],
       ),
     );
@@ -302,70 +200,3 @@ class _ImagePlaceholder extends StatelessWidget {
   }
 }
 
-class _ImageCarousel extends StatefulWidget {
-  const _ImageCarousel({required this.imageUrls, required this.fallbackName});
-
-  final List<String> imageUrls;
-  final String fallbackName;
-
-  @override
-  State<_ImageCarousel> createState() => _ImageCarouselState();
-}
-
-class _ImageCarouselState extends State<_ImageCarousel> {
-  final PageController _controller = PageController(viewportFraction: 1);
-  int _index = 0;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        PageView.builder(
-          controller: _controller,
-          itemCount: widget.imageUrls.length,
-          onPageChanged: (value) => setState(() => _index = value),
-          itemBuilder: (_, index) {
-            return Container(
-              color: const Color(0xFF0B1220),
-              alignment: Alignment.center,
-              child: Image.network(
-                widget.imageUrls[index],
-                fit: BoxFit.contain,
-                width: double.infinity,
-                height: double.infinity,
-                errorBuilder: (_, __, ___) =>
-                    _ImagePlaceholder(name: widget.fallbackName),
-              ),
-            );
-          },
-        ),
-        if (widget.imageUrls.length > 1)
-          Positioned(
-            right: 8,
-            bottom: 8,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.52),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                '${_index + 1}/${widget.imageUrls.length}',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}

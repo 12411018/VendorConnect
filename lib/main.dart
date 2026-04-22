@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vendorlink/screens/auth/login_screen.dart';
 import 'package:vendorlink/screens/retailer/retailer_dashboard.dart';
 import 'package:vendorlink/screens/wholesaler/tabs/wholesaler_home.dart';
-import 'package:vendorlink/services/auth_service.dart';
+import 'package:vendorlink/services/auth/auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -3,7 +3,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:vendorlink/config/map_config.dart';
 import 'package:vendorlink/screens/retailer/models/retailer_cart.dart';
 import 'package:vendorlink/screens/retailer/widgets/vendorlink_payment_gateway_screen.dart';
-import 'package:vendorlink/services/auth_service.dart';
+import 'package:vendorlink/services/auth/auth_service.dart';
 
 class RetailerCartTab extends StatefulWidget {
   const RetailerCartTab({

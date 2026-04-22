@@ -19,7 +19,6 @@ class ProductGridCard extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final stockQty = int.tryParse(item.quantity) ?? 0;
     final isOutOfStock = stockQty <= 0;
-    final gallery = item.galleryImages;
 
     return Opacity(
       opacity: isOutOfStock ? 0.45 : 1,
@@ -52,7 +51,7 @@ class ProductGridCard extends StatelessWidget {
                       Positioned.fill(
                         child: Padding(
                           padding: const EdgeInsets.all(8),
-                          child: gallery.isEmpty
+                          child: item.imageUrl.isEmpty
                               ? Container(
                                   color: const Color(0xFF374151),
                                   alignment: Alignment.center,
@@ -61,7 +60,18 @@ class ProductGridCard extends StatelessWidget {
                                     color: Colors.white70,
                                   ),
                                 )
-                              : _CardCarousel(imageUrls: gallery),
+                              : Image.network(
+                                  item.imageUrl,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    color: const Color(0xFF374151),
+                                    alignment: Alignment.center,
+                                    child: const Icon(
+                                      Icons.image_not_supported,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                ),
                         ),
                       ),
                       Positioned(
@@ -117,7 +127,7 @@ class ProductGridCard extends StatelessWidget {
                         ),
                         const Spacer(),
                         Text(
-                          'Price: ${item.price}  |  ${item.ratingAverage.toStringAsFixed(1)} star (${item.ratingCount})',
+                          'Price: ${item.price}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -152,69 +162,3 @@ class ProductGridCard extends StatelessWidget {
   }
 }
 
-class _CardCarousel extends StatefulWidget {
-  const _CardCarousel({required this.imageUrls});
-
-  final List<String> imageUrls;
-
-  @override
-  State<_CardCarousel> createState() => _CardCarouselState();
-}
-
-class _CardCarouselState extends State<_CardCarousel> {
-  final PageController _controller = PageController(viewportFraction: 1);
-  int _index = 0;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        PageView.builder(
-          controller: _controller,
-          itemCount: widget.imageUrls.length,
-          onPageChanged: (value) => setState(() => _index = value),
-          itemBuilder: (_, index) {
-            return Image.network(
-              widget.imageUrls[index],
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Container(
-                color: const Color(0xFF374151),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.image_not_supported,
-                  color: Colors.white70,
-                ),
-              ),
-            );
-          },
-        ),
-        if (widget.imageUrls.length > 1)
-          Positioned(
-            right: 8,
-            bottom: 8,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.52),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                '${_index + 1}/${widget.imageUrls.length}',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}

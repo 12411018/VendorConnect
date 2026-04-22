@@ -1,4 +1,4 @@
-part of '../auth_service.dart';
+part of 'auth_service.dart';
 
 extension AuthServiceHelpers on AuthService {
   String requireCurrentUserId() {

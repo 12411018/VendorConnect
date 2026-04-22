@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../services/auth_service.dart';
+import '../../../services/auth/auth_service.dart';
 import '../../../services/date_time_service.dart';
 import '../widgets/dashboard_card.dart';
 

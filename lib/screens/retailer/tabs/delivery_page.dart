@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:vendorlink/config/map_config.dart';
-import 'package:vendorlink/services/auth_service.dart';
+import 'package:vendorlink/services/auth/auth_service.dart';
 import 'package:vendorlink/services/map_route_service.dart';
 
 class RetailerDeliveryPage extends StatelessWidget {

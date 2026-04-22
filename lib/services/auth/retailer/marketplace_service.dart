@@ -1,4 +1,4 @@
-part of '../../auth_service.dart';
+part of '../auth_service.dart';
 
 extension AuthMarketplaceService on AuthService {
   Stream<List<Map<String, dynamic>>> watchMarketplaceProducts() {
@@ -10,9 +10,7 @@ extension AuthMarketplaceService on AuthService {
       try {
         final rows = await _supabase
             .from('products')
-            .select(
-              '*, vendor_profile:profiles!products_vendor_id_fkey(id, name, shop_name, phone), product_images(image_url, sort_order), product_ratings(rating, review, created_at, retailer_id)',
-            )
+            .select('*, vendor_profile:profiles!products_vendor_id_fkey(id, name, shop_name, phone)')
             .order('created_at', ascending: false)
             .timeout(const Duration(seconds: 12));
 
@@ -101,9 +99,7 @@ extension AuthMarketplaceService on AuthService {
     try {
       final rows = await _supabase
           .from('products')
-          .select(
-            '*, vendor_profile:profiles!products_vendor_id_fkey(id, name, shop_name, phone), product_images(image_url, sort_order), product_ratings(rating, review, created_at, retailer_id)',
-          )
+          .select('*, vendor_profile:profiles!products_vendor_id_fkey(id, name, shop_name, phone)')
           .order('created_at', ascending: false)
           .timeout(const Duration(seconds: 12));
       final mapped = List<Map<String, dynamic>>.from(rows);
@@ -147,25 +143,4 @@ extension AuthMarketplaceService on AuthService {
     }
   }
 
-  Future<void> submitProductRating({
-    required String productId,
-    required int rating,
-    String? review,
-  }) async {
-    final retailerId = requireCurrentUserId();
-
-    try {
-      await _supabase.from('product_ratings').upsert({
-        'product_id': productId,
-        'retailer_id': retailerId,
-        'rating': rating,
-        'review': (review ?? '').trim().isEmpty ? null : review?.trim(),
-      }, onConflict: 'product_id,retailer_id');
-    } on PostgrestException catch (error) {
-      if (error.message.toLowerCase().contains('product_ratings')) {
-        return;
-      }
-      throw AuthException(error.message);
-    }
-  }
 }

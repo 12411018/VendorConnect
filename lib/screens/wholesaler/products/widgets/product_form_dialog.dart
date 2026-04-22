@@ -70,9 +70,8 @@ class _ProductFormPageState extends State<_ProductFormPage> {
       );
   final TextEditingController _imageController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final List<Uint8List> _galleryBytes = <Uint8List>[];
-  final List<String> _galleryExt = <String>[];
-  final List<String> _linkedUrls = <String>[];
+  Uint8List? _pickedImageBytes;
+  String? _pickedImageExt;
   bool _useImageUrl = true;
   bool _saving = false;
 
@@ -84,20 +83,12 @@ class _ProductFormPageState extends State<_ProductFormPage> {
         .toString()
         .trim();
     if (existingPrimary.isNotEmpty) {
-      _linkedUrls.add(existingPrimary);
+      _imageController.text = existingPrimary;
     }
-
-    final existingRelation = widget.existing?['product_images'];
-    if (existingRelation is List) {
-      for (final row in existingRelation) {
-        if (row is Map<String, dynamic>) {
-          final url = (row['image_url'] ?? '').toString().trim();
-          if (url.isNotEmpty && !_linkedUrls.contains(url)) {
-            _linkedUrls.add(url);
-          }
-        }
-      }
-    }
+    
+    _imageController.addListener(() {
+      setState(() {});
+    });
   }
 
   @override
@@ -130,8 +121,8 @@ class _ProductFormPageState extends State<_ProductFormPage> {
         return;
       }
       setState(() {
-        _galleryBytes.add(bytes);
-        _galleryExt.add(ext);
+        _pickedImageBytes = bytes;
+        _pickedImageExt = ext;
       });
     } catch (_) {
       if (!widget.isMounted() || !mounted) {
@@ -157,20 +148,24 @@ class _ProductFormPageState extends State<_ProductFormPage> {
     });
 
     try {
-      final allImageUrls = <String>[..._linkedUrls];
-      for (var i = 0; i < _galleryBytes.length; i++) {
+      String? finalImageUrl = _imageController.text.trim();
+      if (!_useImageUrl && _pickedImageBytes != null) {
         final uploaded = await widget.actionsService.resolveImageUrl(
           useImageUrl: false,
           imageText: '',
-          pickedImageBytes: _galleryBytes[i],
-          pickedImageExtension: _galleryExt[i],
+          pickedImageBytes: _pickedImageBytes,
+          pickedImageExtension: _pickedImageExt!,
         );
         if ((uploaded ?? '').trim().isNotEmpty) {
-          allImageUrls.add(uploaded!.trim());
+          finalImageUrl = uploaded!.trim();
         }
       }
 
-      final productId = await widget.actionsService.saveProduct(
+      if (finalImageUrl != null && finalImageUrl.isEmpty) {
+        finalImageUrl = null;
+      }
+
+      await widget.actionsService.saveProduct(
         isEdit: _isEdit,
         productId: (widget.existing?['id'] ?? '').toString(),
         name: _nameController.text.trim(),
@@ -180,15 +175,8 @@ class _ProductFormPageState extends State<_ProductFormPage> {
         category: _categoryController.text.trim(),
         type: _typeController.text.trim(),
         description: _descriptionController.text.trim(),
-        imageUrl: allImageUrls.isEmpty ? null : allImageUrls.first,
+        imageUrl: finalImageUrl,
       );
-
-      if (allImageUrls.isNotEmpty) {
-        await widget.actionsService.replaceProductImages(
-          productId: productId,
-          imageUrls: allImageUrls,
-        );
-      }
 
       if (!widget.isMounted() || !mounted) {
         return;
@@ -234,14 +222,11 @@ class _ProductFormPageState extends State<_ProductFormPage> {
     }
   }
 
-  void _removeImageAt(int index) {
+  void _removeImage() {
     setState(() {
-      if (index < _galleryBytes.length) {
-        _galleryBytes.removeAt(index);
-        _galleryExt.removeAt(index);
-      } else {
-        _linkedUrls.removeAt(index - _galleryBytes.length);
-      }
+      _pickedImageBytes = null;
+      _pickedImageExt = null;
+      _imageController.clear();
     });
   }
 
@@ -289,7 +274,7 @@ class _ProductFormPageState extends State<_ProductFormPage> {
                           SizedBox(
                             height: 148,
                             child:
-                                (_galleryBytes.isEmpty && _linkedUrls.isEmpty)
+                              (_pickedImageBytes == null && _imageController.text.trim().isEmpty)
                                 ? Container(
                                     width: double.infinity,
                                     decoration: BoxDecoration(
@@ -307,78 +292,54 @@ class _ProductFormPageState extends State<_ProductFormPage> {
                                       ),
                                     ),
                                   )
-                                : ListView.separated(
-                                    scrollDirection: Axis.horizontal,
-                                    itemCount:
-                                        _galleryBytes.length +
-                                        _linkedUrls.length,
-                                    separatorBuilder: (_, __) =>
-                                        const SizedBox(width: 8),
-                                    itemBuilder: (_, index) {
-                                      final isGallery =
-                                          index < _galleryBytes.length;
-                                      return Stack(
-                                        children: [
-                                          ClipRRect(
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                            child: isGallery
-                                                ? Image.memory(
-                                                    _galleryBytes[index],
+                                : Stack(
+                                    children: [
+                                      Container(
+                                        width: double.infinity,
+                                        alignment: Alignment.center,
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(12),
+                                          child: (!_useImageUrl && _pickedImageBytes != null)
+                                              ? Image.memory(
+                                                  _pickedImageBytes!,
+                                                  width: 160,
+                                                  height: 148,
+                                                  fit: BoxFit.cover,
+                                                )
+                                              : Image.network(
+                                                  _imageController.text.trim(),
+                                                  width: 160,
+                                                  height: 148,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (_, __, ___) => Container(
                                                     width: 160,
                                                     height: 148,
-                                                    fit: BoxFit.cover,
-                                                  )
-                                                : Image.network(
-                                                    _linkedUrls[index -
-                                                        _galleryBytes.length],
-                                                    width: 160,
-                                                    height: 148,
-                                                    fit: BoxFit.cover,
-                                                    errorBuilder:
-                                                        (
-                                                          _,
-                                                          __,
-                                                          ___,
-                                                        ) => Container(
-                                                          width: 160,
-                                                          height: 148,
-                                                          color: const Color(
-                                                            0xFF111827,
-                                                          ),
-                                                          child: const Icon(
-                                                            Icons.broken_image,
-                                                          ),
-                                                        ),
+                                                    color: const Color(0xFF111827),
+                                                    child: const Icon(Icons.broken_image),
                                                   ),
-                                          ),
-                                          Positioned(
-                                            right: 4,
-                                            top: 4,
-                                            child: InkWell(
-                                              onTap: () =>
-                                                  _removeImageAt(index),
-                                              child: Container(
-                                                padding: const EdgeInsets.all(
-                                                  4,
                                                 ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.black
-                                                      .withValues(alpha: 0.54),
-                                                  shape: BoxShape.circle,
-                                                ),
-                                                child: const Icon(
-                                                  Icons.close,
-                                                  size: 14,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        right: 4,
+                                        top: 4,
+                                        child: InkWell(
+                                          onTap: _removeImage,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withValues(alpha: 0.54),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.close,
+                                              size: 14,
+                                              color: Colors.white,
                                             ),
                                           ),
-                                        ],
-                                      );
-                                    },
+                                        ),
+                                      ),
+                                    ],
                                   ),
                           ),
                           const SizedBox(height: 10),
@@ -419,59 +380,36 @@ class _ProductFormPageState extends State<_ProductFormPage> {
                               ),
                             ),
                           if (_useImageUrl)
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextFormField(
-                                    controller: _imageController,
-                                    style: const TextStyle(
-                                      color: Color(0xFFF8FAFC),
-                                    ),
-                                    cursorColor: Color(0xFF38BDF8),
-                                    decoration: InputDecoration(
-                                      labelText: 'Image URL',
-                                      hintText:
-                                          'https://example.com/product.jpg',
-                                      labelStyle: const TextStyle(
-                                        color: Color(0xFF94A3B8),
-                                      ),
-                                      hintStyle: const TextStyle(
-                                        color: Color(0xFF64748B),
-                                      ),
-                                      filled: true,
-                                      fillColor: const Color(0xFF111827),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: const BorderSide(
-                                          color: Color(0xFF334155),
-                                        ),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: const BorderSide(
-                                          color: Color(0xFF38BDF8),
-                                        ),
-                                      ),
-                                    ),
+                            TextFormField(
+                              controller: _imageController,
+                              style: const TextStyle(
+                                color: Color(0xFFF8FAFC),
+                              ),
+                              cursorColor: const Color(0xFF38BDF8),
+                              decoration: InputDecoration(
+                                labelText: 'Image URL',
+                                hintText: 'https://example.com/product.jpg',
+                                labelStyle: const TextStyle(
+                                  color: Color(0xFF94A3B8),
+                                ),
+                                hintStyle: const TextStyle(
+                                  color: Color(0xFF64748B),
+                                ),
+                                filled: true,
+                                fillColor: const Color(0xFF111827),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF334155),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                FilledButton.tonal(
-                                  onPressed: () {
-                                    final url = _imageController.text.trim();
-                                    if (url.isEmpty) {
-                                      return;
-                                    }
-                                    setState(() {
-                                      if (!_linkedUrls.contains(url)) {
-                                        _linkedUrls.add(url);
-                                      }
-                                      _imageController.clear();
-                                    });
-                                  },
-                                  child: const Text('Add'),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF38BDF8),
+                                  ),
                                 ),
-                              ],
+                              ),
                             ),
                           const SizedBox(height: 12),
                           TextFormField(

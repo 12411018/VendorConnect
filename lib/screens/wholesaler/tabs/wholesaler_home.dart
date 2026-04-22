@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vendorlink/screens/auth/login_screen.dart';
 import 'package:vendorlink/screens/wholesaler/products/products_page.dart';
-import 'package:vendorlink/services/auth_service.dart';
+import 'package:vendorlink/services/auth/auth_service.dart';
 
 import 'deliveries_page.dart';
 import 'analytics_page.dart';

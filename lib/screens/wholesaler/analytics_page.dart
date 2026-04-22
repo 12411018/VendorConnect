@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:vendorlink/services/auth_service.dart';
+import 'package:vendorlink/services/auth/auth_service.dart';
 import 'package:vendorlink/services/business_ai_service.dart';
 
 class AnalyticsPage extends StatefulWidget {

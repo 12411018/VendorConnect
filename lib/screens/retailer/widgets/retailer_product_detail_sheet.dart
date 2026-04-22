@@ -6,7 +6,6 @@ Future<void> showRetailerProductDetails({
   required BuildContext context,
   required RetailerProductUiModel product,
   required VoidCallback? onAddToCart,
-  required Future<void> Function(int rating, String review) onRate,
 }) async {
   await showGeneralDialog<void>(
     context: context,
@@ -19,7 +18,6 @@ Future<void> showRetailerProductDetails({
       child: RetailerProductDetailPage(
         product: product,
         onAddToCart: onAddToCart,
-        onRate: onRate,
       ),
     ),
   );
@@ -30,12 +28,10 @@ class RetailerProductDetailPage extends StatelessWidget {
     super.key,
     required this.product,
     required this.onAddToCart,
-    required this.onRate,
   });
 
   final RetailerProductUiModel product;
   final VoidCallback? onAddToCart;
-  final Future<void> Function(int rating, String review) onRate;
 
   @override
   Widget build(BuildContext context) {
@@ -49,9 +45,6 @@ class RetailerProductDetailPage extends StatelessWidget {
         ? '0'
         : product.formattedPrice.trim();
 
-    final ratingText = product.ratingAverage.isFinite
-        ? product.ratingAverage.toStringAsFixed(1)
-        : '0.0';
     final displayVendorName = product.vendorName.trim().isEmpty
         ? 'Wholesaler'
         : product.vendorName.trim();
@@ -106,11 +99,19 @@ class RetailerProductDetailPage extends StatelessWidget {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(20),
-                        child: product.galleryImages.isEmpty
+                        child: product.imageUrl.isEmpty
                             ? _ImagePlaceholder(name: displayName)
-                            : _ImageCarousel(
-                                imageUrls: product.galleryImages,
-                                fallbackName: displayName,
+                            : Container(
+                                color: const Color(0xFF0B1220),
+                                alignment: Alignment.center,
+                                child: Image.network(
+                                  product.imageUrl,
+                                  fit: BoxFit.contain,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  errorBuilder: (_, __, ___) =>
+                                      _ImagePlaceholder(name: displayName),
+                                ),
                               ),
                       ),
                     ),
@@ -165,22 +166,6 @@ class RetailerProductDetailPage extends StatelessWidget {
                       icon: Icons.inventory_2_outlined,
                       label: product.stockLabel,
                     ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Rating: $ratingText (${product.ratingCount})',
-                      style: const TextStyle(
-                        color: Color(0xFFCBD5E1),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    OutlinedButton.icon(
-                      onPressed: () async {
-                        await _showRateDialog(context, onRate);
-                      },
-                      icon: const Icon(Icons.rate_review_outlined),
-                      label: const Text('Rate this product'),
-                    ),
                     const SizedBox(height: 12),
                     Text(
                       displayDescription,
@@ -211,73 +196,6 @@ class RetailerProductDetailPage extends StatelessWidget {
       ),
     );
   }
-}
-
-Future<void> _showRateDialog(
-  BuildContext context,
-  Future<void> Function(int rating, String review) onRate,
-) async {
-  final reviewController = TextEditingController();
-  var stars = 5;
-
-  await showDialog<void>(
-    context: context,
-    builder: (dialogContext) {
-      return StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            title: const Text('Rate this product'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(5, (index) {
-                    final selected = index < stars;
-                    return IconButton(
-                      onPressed: () => setState(() => stars = index + 1),
-                      icon: Icon(
-                        selected
-                            ? Icons.star_rounded
-                            : Icons.star_border_rounded,
-                        color: const Color(0xFFF59E0B),
-                      ),
-                    );
-                  }),
-                ),
-                TextField(
-                  controller: reviewController,
-                  minLines: 2,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'Review (optional)',
-                    hintText: 'How was the quality and delivery?',
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  await onRate(stars, reviewController.text.trim());
-                  if (dialogContext.mounted) {
-                    Navigator.of(dialogContext).pop();
-                  }
-                },
-                child: const Text('Submit'),
-              ),
-            ],
-          );
-        },
-      );
-    },
-  );
-
-  reviewController.dispose();
 }
 
 class _MetaChip extends StatelessWidget {
@@ -349,70 +267,3 @@ class _ImagePlaceholder extends StatelessWidget {
   }
 }
 
-class _ImageCarousel extends StatefulWidget {
-  const _ImageCarousel({required this.imageUrls, required this.fallbackName});
-
-  final List<String> imageUrls;
-  final String fallbackName;
-
-  @override
-  State<_ImageCarousel> createState() => _ImageCarouselState();
-}
-
-class _ImageCarouselState extends State<_ImageCarousel> {
-  final PageController _controller = PageController(viewportFraction: 1);
-  int _index = 0;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        PageView.builder(
-          controller: _controller,
-          itemCount: widget.imageUrls.length,
-          onPageChanged: (value) => setState(() => _index = value),
-          itemBuilder: (_, index) {
-            return Container(
-              color: const Color(0xFF0B1220),
-              alignment: Alignment.center,
-              child: Image.network(
-                widget.imageUrls[index],
-                fit: BoxFit.contain,
-                width: double.infinity,
-                height: double.infinity,
-                errorBuilder: (_, __, ___) =>
-                    _ImagePlaceholder(name: widget.fallbackName),
-              ),
-            );
-          },
-        ),
-        if (widget.imageUrls.length > 1)
-          Positioned(
-            right: 8,
-            bottom: 8,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.52),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                '${_index + 1}/${widget.imageUrls.length}',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}

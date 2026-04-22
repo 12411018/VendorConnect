@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:vendorlink/services/auth_service.dart';
+import 'package:vendorlink/services/auth/auth_service.dart';
 
 class ProductActionsService {
   ProductActionsService(this._authService);
@@ -69,15 +69,7 @@ class ProductActionsService {
     );
   }
 
-  Future<void> replaceProductImages({
-    required String productId,
-    required List<String> imageUrls,
-  }) {
-    return _authService.replaceProductImagesForCurrentUser(
-      productId: productId,
-      imageUrls: imageUrls,
-    );
-  }
+
 
   Future<void> deleteProduct(String productId) {
     return _authService.deleteProductForCurrentUser(productId);

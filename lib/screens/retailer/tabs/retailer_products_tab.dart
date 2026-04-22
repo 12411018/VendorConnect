@@ -5,7 +5,7 @@ import 'package:vendorlink/screens/retailer/widgets/retailer_product_card.dart';
 import 'package:vendorlink/screens/retailer/widgets/retailer_product_detail_sheet.dart';
 import 'package:vendorlink/screens/retailer/widgets/retailer_products_empty_state.dart';
 import 'package:vendorlink/screens/retailer/widgets/retailer_products_header.dart';
-import 'package:vendorlink/services/auth_service.dart';
+import 'package:vendorlink/services/auth/auth_service.dart';
 
 class RetailerProductsTab extends StatefulWidget {
   const RetailerProductsTab({super.key, required this.cart});
@@ -164,9 +164,6 @@ class _RetailerProductsTabState extends State<RetailerProductsTab> {
 
               return GridView.builder(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
-                ),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: crossAxisCount,
                   crossAxisSpacing: 14,
@@ -200,13 +197,6 @@ class _RetailerProductsTabState extends State<RetailerProductsTab> {
       context: context,
       product: productModel,
       onAddToCart: () => _addToCart(product),
-      onRate: (rating, review) async {
-        await _authService.submitProductRating(
-          productId: productModel.id,
-          rating: rating,
-          review: review,
-        );
-      },
     );
   }
 

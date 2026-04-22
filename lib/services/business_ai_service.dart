@@ -156,8 +156,7 @@ class BusinessAiService {
     return '1. Increase stock for top 3 frequently bought products this week.\n'
         '2. Offer a volume discount to the most active retailers to boost repeat orders.\n'
         '3. Reduce slow-moving inventory by running a limited-time bundle offer.\n'
-        '4. Keep dispatch SLA under 24h for all pending orders to improve completion rate.\n'
-        '5. Review ratings and fix issues for products below 4.0 to reduce churn.\n\n';
+        '4. Keep dispatch SLA under 24h for all pending orders to improve completion rate.\n\n';
   }
 
   String _stockFallback(String summary) {

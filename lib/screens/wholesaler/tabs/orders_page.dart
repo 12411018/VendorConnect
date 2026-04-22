@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vendorlink/config/map_config.dart';
 import 'package:vendorlink/screens/wholesaler/widgets/order_route_map_screen.dart';
-import 'package:vendorlink/services/auth_service.dart';
+import 'package:vendorlink/services/auth/auth_service.dart';
 
 class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key});

@@ -8,7 +8,7 @@ import 'package:vendorlink/screens/wholesaler/products/widgets/product_grid_card
 import 'package:vendorlink/screens/wholesaler/products/widgets/products_empty_state.dart';
 import 'package:vendorlink/screens/wholesaler/products/widgets/products_header.dart';
 import 'package:vendorlink/screens/wholesaler/products/widgets/wholesaler_product_detail_page.dart';
-import 'package:vendorlink/services/auth_service.dart';
+import 'package:vendorlink/services/auth/auth_service.dart';
 
 class ProductsPage extends StatefulWidget {
   const ProductsPage({super.key});

@@ -1,4 +1,4 @@
-part of '../../auth_service.dart';
+part of '../auth_service.dart';
 
 extension AuthRetailerOrderService on AuthService {
   Stream<List<Map<String, dynamic>>> watchRetailerOrders() {

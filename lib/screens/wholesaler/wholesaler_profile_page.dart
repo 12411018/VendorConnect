@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../services/auth_service.dart';
+import '../../services/auth/auth_service.dart';
 
 class WholesalerProfilePage extends StatelessWidget {
   const WholesalerProfilePage({super.key});

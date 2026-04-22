@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:vendorlink/screens/auth/login_screen.dart';
-import 'package:vendorlink/screens/retailer/delivery_page.dart';
+import 'package:vendorlink/screens/retailer/tabs/delivery_page.dart';
 import 'package:vendorlink/screens/retailer/models/retailer_cart.dart';
 import 'package:vendorlink/screens/retailer/profile_page.dart';
 import 'package:vendorlink/screens/retailer/tabs/retailer_cart_tab.dart';
 import 'package:vendorlink/screens/retailer/tabs/retailer_orders_tab.dart';
 import 'package:vendorlink/screens/retailer/tabs/retailer_products_tab.dart';
-import 'package:vendorlink/services/auth_service.dart';
+import 'package:vendorlink/services/auth/auth_service.dart';
 
 class RetailerDashboard extends StatefulWidget {
   const RetailerDashboard({super.key});

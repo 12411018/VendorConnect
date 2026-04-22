@@ -16,8 +16,6 @@ class RetailerProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gallery = product.galleryImages;
-
     return Opacity(
       opacity: product.isOutOfStock ? 0.45 : 1,
       child: Material(
@@ -30,13 +28,6 @@ class RetailerProductCard extends StatelessWidget {
               color: const Color(0xFF101827),
               borderRadius: BorderRadius.circular(22),
               border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x42000000),
-                  blurRadius: 16,
-                  offset: Offset(0, 10),
-                ),
-              ],
             ),
             child: Padding(
               padding: const EdgeInsets.all(14),
@@ -48,11 +39,21 @@ class RetailerProductCard extends StatelessWidget {
                     flex: 5,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(16),
-                      child: gallery.isEmpty
+                      child: product.imageUrl.isEmpty
                           ? _ProductImagePlaceholder(name: product.name)
-                          : _ProductImageCarousel(
-                              imageUrls: gallery,
-                              fallbackName: product.name,
+                          : Container(
+                              color: const Color(0xFF0B1220),
+                              alignment: Alignment.center,
+                              child: Image.network(
+                                product.imageUrl,
+                                fit: BoxFit.contain,
+                                width: double.infinity,
+                                height: double.infinity,
+                                errorBuilder: (_, __, ___) {
+                                  return _ProductImagePlaceholder(
+                                      name: product.name);
+                                },
+                              ),
                             ),
                     ),
                   ),
@@ -84,14 +85,6 @@ class RetailerProductCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    'Rating: ${product.ratingAverage.toStringAsFixed(1)} (${product.ratingCount})',
-                    style: const TextStyle(
-                      color: Color(0xFF94A3B8),
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
@@ -204,81 +197,6 @@ class _ProductImagePlaceholder extends StatelessWidget {
   }
 }
 
-class _ProductImageCarousel extends StatefulWidget {
-  const _ProductImageCarousel({
-    required this.imageUrls,
-    required this.fallbackName,
-  });
-
-  final List<String> imageUrls;
-  final String fallbackName;
-
-  @override
-  State<_ProductImageCarousel> createState() => _ProductImageCarouselState();
-}
-
-class _ProductImageCarouselState extends State<_ProductImageCarousel> {
-  final PageController _controller = PageController(viewportFraction: 1);
-  int _index = 0;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        PageView.builder(
-          controller: _controller,
-          itemCount: widget.imageUrls.length,
-          onPageChanged: (value) {
-            setState(() {
-              _index = value;
-            });
-          },
-          itemBuilder: (context, index) {
-            return Container(
-              color: const Color(0xFF0B1220),
-              alignment: Alignment.center,
-              child: Image.network(
-                widget.imageUrls[index],
-                fit: BoxFit.contain,
-                width: double.infinity,
-                height: double.infinity,
-                errorBuilder: (_, __, ___) {
-                  return _ProductImagePlaceholder(name: widget.fallbackName);
-                },
-              ),
-            );
-          },
-        ),
-        if (widget.imageUrls.length > 1)
-          Positioned(
-            right: 8,
-            bottom: 8,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.52),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                '${_index + 1}/${widget.imageUrls.length}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
 
 class _ProductMetaChip extends StatelessWidget {
   const _ProductMetaChip({required this.label, required this.icon});
