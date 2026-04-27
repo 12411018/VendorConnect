@@ -20,7 +20,6 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     _locationController = TextEditingController();
-    // Load initial location from profiles table asynchronously
     _authService.fetchCurrentRetailerLocation().then((location) {
       if (mounted && location.isNotEmpty) {
         _locationController.text = location;

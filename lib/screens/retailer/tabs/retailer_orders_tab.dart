@@ -156,32 +156,32 @@ class _RetailerOrdersTabState extends State<RetailerOrdersTab> {
                 ),
               ),
               const SizedBox(height: 8),
-              ...items
-                  .take(4)
-                  .map(
-                    (item) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: [
-                          _OrderItemThumb(imageUrl: _itemImageUrl(item)),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              _formatItemLabel(item),
-                              style: const TextStyle(
-                                color: Color(0xFFD1D5DB),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              if (items.length > 4)
-                Text(
-                  '+ ${items.length - 4} more items',
-                  style: const TextStyle(color: Color(0xFF9CA3AF)),
-                ),
+            //   ...items
+            //       .take(4)
+            //       .map(
+            //         (item) => Padding(
+            //           padding: const EdgeInsets.only(bottom: 8),
+            //           child: Row(
+            //             children: [
+            //               _OrderItemThumb(imageUrl: _itemImageUrl(item)),
+            //               const SizedBox(width: 10),
+            //               Expanded(
+            //                 child: Text(
+            //                   _formatItemLabel(item),
+            //                   style: const TextStyle(
+            //                     color: Color(0xFFD1D5DB),
+            //                   ),
+            //                 ),
+            //               ),
+            //             ],
+            //           ),
+            //         ),
+            //       ),
+            //   if (items.length > 4)
+            //     Text(
+            //       '+ ${items.length - 4} more items',
+            //       style: const TextStyle(color: Color(0xFF9CA3AF)),
+            //     ),
             ],
             const SizedBox(height: 12),
             _buildOrderMessage(status),
@@ -246,7 +246,6 @@ class _RetailerOrdersTabState extends State<RetailerOrdersTab> {
   }
 }
 
-// ─── Private widgets ───
 
 class _OrderItemThumb extends StatelessWidget {
   const _OrderItemThumb({required this.imageUrl});
@@ -281,7 +280,6 @@ class _OrderItemThumb extends StatelessWidget {
   }
 }
 
-// ─── Helper functions ───
 
 double? _toDoubleOrNull(dynamic value) {
   if (value is num) return value.toDouble();
@@ -310,64 +308,64 @@ List<Map<String, dynamic>> _extractOrderItems(Map<String, dynamic> order) {
   ];
 }
 
-String _formatItemLabel(Map<String, dynamic> item) {
-  final product = item['product'];
-  final productName = product is Map<String, dynamic>
-      ? (product['name'] ?? 'Product').toString()
-      : (item['product_name'] ?? 'Product').toString();
-  final quantity = _toDoubleOrNull(item['quantity'])?.toInt() ?? 1;
-  final unitPrice = _itemUnitPrice(item);
-  return '$productName x$quantity • ₹${_formatRupees(unitPrice)}';
-}
+// String _formatItemLabel(Map<String, dynamic> item) {
+//   final product = item['product'];
+//   final productName = product is Map<String, dynamic>
+//       ? (product['name'] ?? 'Product').toString()
+//       : (item['product_name'] ?? 'Product').toString();
+//   final quantity = _toDoubleOrNull(item['quantity'])?.toInt() ?? 1;
+//   final unitPrice = _itemUnitPrice(item);
+//   return '$productName x$quantity • ₹${_formatRupees(unitPrice)}';
+// }
 
-double _itemUnitPrice(Map<String, dynamic> item) {
-  final product = item['product'];
-  final quantity = _toDoubleOrNull(item['quantity'])?.toInt() ?? 1;
+// double _itemUnitPrice(Map<String, dynamic> item) {
+//   final product = item['product'];
+//   final quantity = _toDoubleOrNull(item['quantity'])?.toInt() ?? 1;
+//
+//   final totalPrice = _toDoubleOrNull(item['total_price']);
+//   if (totalPrice != null && quantity > 0) {
+//     final derived = totalPrice / quantity;
+//     if (derived > 0) return derived;
+//   }
+//
+//   final candidates = <dynamic>[
+//     item['unit_price'],
+//     item['price'],
+//     if (product is Map<String, dynamic>) product['price'],
+//     if (product is Map<String, dynamic>) product['selling_price'],
+//     if (product is Map<String, dynamic>) product['mrp'],
+//   ];
+//
+//   for (final candidate in candidates) {
+//     final value = _toDoubleOrNull(candidate);
+//     if (value != null && value > 0) return value;
+//   }
+//
+//   return 0;
+// }
 
-  final totalPrice = _toDoubleOrNull(item['total_price']);
-  if (totalPrice != null && quantity > 0) {
-    final derived = totalPrice / quantity;
-    if (derived > 0) return derived;
-  }
+// String _formatRupees(double amount) {
+//   if (amount == amount.truncateToDouble()) {
+//     return amount.toStringAsFixed(0);
+//   }
+//   return amount.toStringAsFixed(2);
+// }
 
-  final candidates = <dynamic>[
-    item['unit_price'],
-    item['price'],
-    if (product is Map<String, dynamic>) product['price'],
-    if (product is Map<String, dynamic>) product['selling_price'],
-    if (product is Map<String, dynamic>) product['mrp'],
-  ];
-
-  for (final candidate in candidates) {
-    final value = _toDoubleOrNull(candidate);
-    if (value != null && value > 0) return value;
-  }
-
-  return 0;
-}
-
-String _formatRupees(double amount) {
-  if (amount == amount.truncateToDouble()) {
-    return amount.toStringAsFixed(0);
-  }
-  return amount.toStringAsFixed(2);
-}
-
-String _itemImageUrl(Map<String, dynamic> item) {
-  final product = item['product'];
-  if (product is Map<String, dynamic>) {
-    final fromProduct =
-        (product['image_url'] ?? product['imageUrl'] ?? product['image'])
-            .toString()
-            .trim();
-    if (fromProduct.isNotEmpty) return fromProduct;
-  }
-
-  final fallback = (item['image_url'] ?? item['imageUrl'] ?? item['image'])
-      .toString()
-      .trim();
-  return fallback.isEmpty ? '' : fallback;
-}
+// String _itemImageUrl(Map<String, dynamic> item) {
+//   final product = item['product'];
+//   if (product is Map<String, dynamic>) {
+//     final fromProduct =
+//         (product['image_url'] ?? product['imageUrl'] ?? product['image'])
+//             .toString()
+//             .trim();
+//     if (fromProduct.isNotEmpty) return fromProduct;
+//   }
+//
+//   final fallback = (item['image_url'] ?? item['imageUrl'] ?? item['image'])
+//       .toString()
+//       .trim();
+//   return fallback.isEmpty ? '' : fallback;
+// }
 
 Widget _buildOrderMessage(String status) {
   final normalized = status.toLowerCase();

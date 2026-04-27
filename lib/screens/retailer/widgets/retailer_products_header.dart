@@ -68,11 +68,9 @@ class RetailerProductsHeader extends StatelessWidget {
           decoration: InputDecoration(
             hintText: 'Search by product name, category, or type',
             prefixIcon: const Icon(Icons.search_rounded),
-            filled: true,
-            fillColor: const Color(0xFF0F172A),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFF1E293B)),
+              // borderSide: const BorderSide(color: Color(0xFF1E293B)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),

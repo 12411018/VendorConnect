@@ -14,7 +14,7 @@ class RetailerCartTab extends StatefulWidget {
 
   final RetailerCart cart;
 
-  /// Called after a successful order so the dashboard can switch to Orders tab.
+
   final VoidCallback onOrderPlaced;
 
   @override
@@ -294,7 +294,7 @@ class _RetailerCartTabState extends State<RetailerCartTab> {
   }
 }
 
-// ─── Helpers ───
+
 
 String _productImageUrl(Map<String, dynamic> product) {
   final rawValue =

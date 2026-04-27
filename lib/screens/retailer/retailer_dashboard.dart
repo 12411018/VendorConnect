@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:vendorlink/screens/auth/login_screen.dart';
-import 'package:vendorlink/screens/retailer/tabs/delivery_page.dart';
 import 'package:vendorlink/screens/retailer/models/retailer_cart.dart';
 import 'package:vendorlink/screens/retailer/profile_page.dart';
 import 'package:vendorlink/screens/retailer/tabs/retailer_cart_tab.dart';
+import 'package:vendorlink/screens/retailer/tabs/retailer_delivery_tab.dart';
 import 'package:vendorlink/screens/retailer/tabs/retailer_orders_tab.dart';
 import 'package:vendorlink/screens/retailer/tabs/retailer_products_tab.dart';
 import 'package:vendorlink/services/auth/auth_service.dart';
@@ -53,12 +53,13 @@ class _RetailerDashboardState extends State<RetailerDashboard> {
             onOrderPlaced: () => _selectTab(2),
           ),
           const RetailerOrdersTab(),
-          const RetailerDeliveryPage(),
+          const RetailerDeliveryTab(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _selectTab,
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.storefront_outlined),
@@ -152,6 +153,7 @@ class _RetailerDashboardState extends State<RetailerDashboard> {
                   _selectTab(3);
                 },
               ),
+
               ListTile(
                 leading: const Icon(Icons.person_outline),
                 title: const Text('Profile'),

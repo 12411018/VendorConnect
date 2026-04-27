@@ -18,8 +18,7 @@ class VendorlinkPaymentGatewayScreen extends StatefulWidget {
       _VendorlinkPaymentGatewayScreenState();
 }
 
-class _VendorlinkPaymentGatewayScreenState
-    extends State<VendorlinkPaymentGatewayScreen> {
+class _VendorlinkPaymentGatewayScreenState extends State<VendorlinkPaymentGatewayScreen> {
   final PaymentService _paymentService = const PaymentService();
   final TextEditingController _upiIdController = TextEditingController();
   final TextEditingController _upiPinController = TextEditingController();
@@ -93,13 +92,6 @@ class _VendorlinkPaymentGatewayScreenState
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(28),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.14),
-                      blurRadius: 24,
-                      offset: const Offset(0, 12),
-                    ),
-                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -202,13 +194,7 @@ class _VendorlinkPaymentGatewayScreenState
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: const Color(0xFFD6D9E0)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
+
                 ),
                 child: Column(
                   children: [

@@ -57,12 +57,12 @@ class VendorLinkApp extends StatelessWidget {
             fontWeight: FontWeight.w700,
             color: Color(0xFFF3F4F6),
           ),
-          titleMedium: TextStyle(
-            fontSize: 19,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFFE5E7EB),
-          ),
-          bodyMedium: TextStyle(fontSize: 14, color: Color(0xFFD1D5DB)),
+          // titleMedium: TextStyle(
+          //   fontSize: 19,
+          //   fontWeight: FontWeight.w700,
+          //   color: Color(0xFFE5E7EB),
+          // ),
+          // bodyMedium: TextStyle(fontSize: 14, color: Color(0xFFD1D5DB)),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(

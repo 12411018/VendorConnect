@@ -1,7 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-/// Shared cart state for the retailer dashboard.
-/// Products tab adds items, Cart tab displays & places orders.
 class RetailerCart extends ChangeNotifier {
   final Map<String, int> _cart = {};
   final Map<String, Map<String, dynamic>> _cartProducts = {};
